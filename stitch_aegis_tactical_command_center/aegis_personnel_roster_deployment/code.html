@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AEGIS - Agents Roster</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom config -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#44ddc1",
+                        "inverse-on-surface": "#2d3135",
+                        "tertiary-fixed-dim": "#ffb3b3",
+                        "secondary-fixed": "#68fadd",
+                        "surface-container": "#1c2024",
+                        "secondary": "#44ddc1",
+                        "on-error-container": "#ffdad6",
+                        "on-surface-variant": "#bac9cc",
+                        "surface-container-high": "#262a2f",
+                        "surface-bright": "#363a3e",
+                        "tertiary-container": "#ffc1c0",
+                        "surface-container-lowest": "#0b0f13",
+                        "surface-variant": "#31353a",
+                        "secondary-container": "#00bea4",
+                        "on-secondary-container": "#00463b",
+                        "on-secondary": "#00382f",
+                        "on-primary-fixed": "#001f24",
+                        "on-error": "#690005",
+                        "surface-container-highest": "#31353a",
+                        "primary-container": "#00e5ff",
+                        "on-secondary-fixed-variant": "#005145",
+                        "on-secondary-fixed": "#00201a",
+                        "surface": "#101418",
+                        "outline-variant": "#3b494c",
+                        "on-primary": "#00363d",
+                        "on-primary-fixed-variant": "#004f58",
+                        "tertiary-fixed": "#ffdad9",
+                        "surface-dim": "#101418",
+                        "primary": "#c3f5ff",
+                        "outline": "#849396",
+                        "primary-fixed-dim": "#00daf3",
+                        "on-tertiary-fixed-variant": "#920021",
+                        "on-primary-container": "#00626e",
+                        "on-surface": "#e0e2e8",
+                        "inverse-primary": "#006875",
+                        "error": "#ffb4ab",
+                        "on-tertiary": "#680014",
+                        "tertiary": "#ffe7e6",
+                        "inverse-surface": "#e0e2e8",
+                        "on-tertiary-container": "#b4002b",
+                        "on-background": "#e0e2e8",
+                        "primary-fixed": "#9cf0ff",
+                        "background": "#101418",
+                        "surface-container-low": "#181c20",
+                        "surface-tint": "#00daf3",
+                        "on-tertiary-fixed": "#400009",
+                        "error-container": "#93000a"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-mobile": "16px",
+                        "unit": "4px",
+                        "panel-gap": "1px",
+                        "margin-desktop": "32px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Inter"],
+                        "mono-data": ["Geist"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Geist"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "mono-data": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "500" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Tactical Glassmorphism & Scanning Effects */
+        body {
+            background-color: #0A0E12;
+            color: #e0e2e8;
+            overflow: hidden; /* High-density fixed grid */
+        }
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 9999;
+        }
+        .glass-panel {
+            background: rgba(28, 32, 36, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .glass-panel-header {
+            background: rgba(28, 32, 36, 0.8);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .tech-bracket-tr {
+            position: absolute; top: 0; right: 0; width: 12px; height: 12px;
+            border-top: 2px solid #00daf3; border-right: 2px solid #00daf3;
+        }
+        .tech-bracket-bl {
+            position: absolute; bottom: 0; left: 0; width: 12px; height: 12px;
+            border-bottom: 2px solid #00daf3; border-left: 2px solid #00daf3;
+        }
+        .cyber-glow-hover:hover {
+            box-shadow: 0 0 12px rgba(0, 218, 243, 0.2);
+            border-color: rgba(0, 218, 243, 0.5);
+        }
+        
+        /* Thin Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #00daf3; border-radius: 2px; }
+
+        /* Row selection state */
+        .row-active {
+            background: rgba(0, 229, 255, 0.1);
+            border-left: 2px solid #00daf3;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex antialiased bg-surface-lowest">
+<!-- Global Scanline Texture -->
+<div class="scanlines absolute inset-0 w-full h-full"></div>
+<!-- SideNavBar (JSON Interpreted) -->
+<nav class="group fixed left-0 top-0 h-full flex flex-col z-[60] bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/30 shadow-2xl docked left-0 h-full w-16 hover:w-60 transition-all duration-300">
+<!-- Header -->
+<div class="h-16 flex items-center justify-center group-hover:justify-start px-4 border-b border-outline-variant/20 overflow-hidden shrink-0">
+<span class="material-symbols-outlined text-primary text-[28px] shrink-0">security</span>
+<div class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap flex flex-col">
+<span class="font-headline-sm text-headline-sm text-primary">Aegis Prime</span>
+<span class="font-label-caps text-label-caps text-outline">Sector-7 Control</span>
+</div>
+</div>
+<!-- Main Nav Tabs -->
+<div class="flex-1 py-4 flex flex-col gap-1 overflow-y-auto">
+<!-- Overview: Inactive -->
+<a class="flex items-center px-4 py-3 mx-2 rounded text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform">grid_view</span>
+<span class="ml-4 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Overview</span>
+</a>
+<!-- Incidents: Inactive -->
+<a class="flex items-center px-4 py-3 mx-2 rounded text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform">emergency</span>
+<span class="ml-4 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Incidents</span>
+</a>
+<!-- Resources: Inactive -->
+<a class="flex items-center px-4 py-3 mx-2 rounded text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform">inventory_2</span>
+<span class="ml-4 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Resources</span>
+</a>
+<!-- Agents: ACTIVE (Context match) -->
+<a class="flex items-center px-4 py-3 mx-1 rounded bg-secondary-container/20 text-secondary border-l-4 border-secondary transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform" style="font-variation-settings: 'FILL' 1;">groups</span>
+<span class="ml-3 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Agents</span>
+</a>
+</div>
+<!-- Footer Nav Tabs -->
+<div class="pb-4 pt-2 border-t border-outline-variant/20 flex flex-col gap-1 shrink-0">
+<a class="flex items-center px-4 py-3 mx-2 rounded text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform">settings</span>
+<span class="ml-4 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Settings</span>
+</a>
+<a class="flex items-center px-4 py-3 mx-2 rounded text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-colors group/item" href="#">
+<span class="material-symbols-outlined text-[24px] shrink-0 group-hover/item:translate-x-1 transition-transform">help</span>
+<span class="ml-4 font-label-caps text-label-caps opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap">Support</span>
+</a>
+</div>
+</nav>
+<!-- TopNavBar (JSON Interpreted) -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-16 fixed top-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-[0_0_15px_rgba(0,218,243,0.1)] pl-[calc(64px+32px)]">
+<!-- Brand -->
+<div class="flex items-center gap-4">
+<span class="font-display-lg text-headline-md tracking-tighter text-primary-fixed-dim uppercase">Aegis Tactical Command</span>
+</div>
+<!-- Navigation Links (Data Readouts) -->
+<div class="hidden md:flex items-center gap-6 font-mono-data text-mono-data text-on-surface-variant">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-primary-fixed-dim">location_searching</span>
+<span>Coordinates: 34.0522° N</span>
+</div>
+<div class="w-1 h-1 bg-outline-variant rounded-full"></div>
+<span>118.2437° W</span>
+<div class="w-1 h-1 bg-outline-variant rounded-full"></div>
+<div class="flex items-center gap-2 text-secondary-fixed-dim">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary-fixed-dim opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-secondary-fixed-dim"></span>
+</span>
+<span>Uptime: 99.9%</span>
+</div>
+</div>
+<!-- Trailing Actions -->
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">notifications_active</span>
+</button>
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all cursor-pointer active:scale-95">
+<span class="material-symbols-outlined text-tertiary-fixed-dim">warning</span>
+</button>
+<button class="p-2 rounded-full text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-16 mt-16 w-[calc(100%-64px)] h-[calc(100vh-64px)] p-gutter flex gap-panel-gap relative z-10">
+<!-- Left: Agent Roster Table (Spans remaining space) -->
+<section class="flex-1 glass-panel rounded flex flex-col overflow-hidden relative">
+<div class="tech-bracket-tr"></div>
+<div class="tech-bracket-bl"></div>
+<!-- Toolbar -->
+<div class="glass-panel-header p-4 flex justify-between items-center z-10">
+<h1 class="font-headline-sm text-headline-sm text-on-surface uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-fixed-dim">format_list_bulleted</span>
+                    Active Roster
+                </h1>
+<div class="flex gap-2">
+<!-- Search Input -->
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="bg-surface-container-highest/50 border-b border-t-0 border-x-0 border-outline-variant text-on-surface font-mono-data text-mono-data pl-9 pr-4 py-1.5 focus:ring-0 focus:border-primary-fixed-dim focus:bg-surface-container transition-all w-64 placeholder:text-outline/50" placeholder="QUERY ID / NAME..." type="text"/>
+</div>
+<!-- Filter Button -->
+<button class="px-3 py-1.5 border border-primary-fixed-dim/50 text-primary-fixed-dim font-label-caps text-label-caps rounded flex items-center gap-1 hover:bg-primary-fixed-dim/10 transition-colors">
+<span class="material-symbols-outlined text-[16px]">filter_list</span>
+                        FILTER
+                    </button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="flex-1 overflow-auto z-10 p-2">
+<table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-surface-container/90 backdrop-blur z-20">
+<tr class="font-label-caps text-label-caps text-outline border-b border-outline-variant/30">
+<th class="py-3 px-4 font-normal">AGENT ID</th>
+<th class="py-3 px-4 font-normal">DESIGNATION</th>
+<th class="py-3 px-4 font-normal">SPECIALTY</th>
+<th class="py-3 px-4 font-normal">STATUS</th>
+<th class="py-3 px-4 font-normal">LOCATION</th>
+<th class="py-3 px-4 font-normal text-right">RATING</th>
+</tr>
+</thead>
+<tbody class="font-mono-data text-mono-data text-on-surface divide-y divide-outline-variant/10">
+<!-- Row 1: Active -->
+<tr class="hover:bg-primary-container/5 cyber-glow-hover transition-all cursor-pointer group row-active relative">
+<td class="py-3 px-4 text-primary-fixed-dim">AX-7729</td>
+<td class="py-3 px-4 font-body-sm text-body-sm text-on-surface">Vance, Kael</td>
+<td class="py-3 px-4 text-outline-variant group-hover:text-on-surface transition-colors">Tactical Ops</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-secondary/30 bg-secondary/10 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                                    DEPLOYED
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">Sector 4, LZ-Alpha</td>
+<td class="py-3 px-4 text-right text-primary-fixed-dim">98.2%</td>
+</tr>
+<!-- Row 2: Standby -->
+<tr class="hover:bg-primary-container/5 cyber-glow-hover transition-all cursor-pointer group relative">
+<td class="py-3 px-4 text-outline">EN-2104</td>
+<td class="py-3 px-4 font-body-sm text-body-sm text-on-surface">Reyes, Elena</td>
+<td class="py-3 px-4 text-outline-variant group-hover:text-on-surface transition-colors">Combat Engineer</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                                    STANDBY
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">Base Command</td>
+<td class="py-3 px-4 text-right text-outline">94.5%</td>
+</tr>
+<!-- Row 3: On Leave -->
+<tr class="hover:bg-primary-container/5 cyber-glow-hover transition-all cursor-pointer group relative opacity-70">
+<td class="py-3 px-4 text-outline">MD-9931</td>
+<td class="py-3 px-4 font-body-sm text-body-sm text-on-surface">Chen, Wei</td>
+<td class="py-3 px-4 text-outline-variant group-hover:text-on-surface transition-colors">Field Medic</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-outline/30 bg-surface-variant text-outline">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                                    ON LEAVE
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">Classified</td>
+<td class="py-3 px-4 text-right text-outline">96.0%</td>
+</tr>
+<!-- Row 4: Active -->
+<tr class="hover:bg-primary-container/5 cyber-glow-hover transition-all cursor-pointer group relative">
+<td class="py-3 px-4 text-outline">AX-4412</td>
+<td class="py-3 px-4 font-body-sm text-body-sm text-on-surface">O'Connor, Jack</td>
+<td class="py-3 px-4 text-outline-variant group-hover:text-on-surface transition-colors">Recon Sniper</td>
+<td class="py-3 px-4">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-secondary/30 bg-secondary/10 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                                    DEPLOYED
+                                </span>
+</td>
+<td class="py-3 px-4 text-outline">Perimeter North</td>
+<td class="py-3 px-4 text-right text-outline">99.1%</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Right: Agent Dossier Panel (Fixed Width) -->
+<aside class="w-96 glass-panel rounded flex flex-col relative shrink-0">
+<div class="tech-bracket-tr"></div>
+<!-- Header -->
+<div class="glass-panel-header p-4 flex justify-between items-center z-10">
+<h2 class="font-headline-sm text-headline-sm text-primary-fixed-dim uppercase tracking-wider flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">badge</span>
+                    Dossier
+                </h2>
+<span class="font-mono-data text-mono-data text-outline border border-outline/30 px-2 py-0.5 rounded bg-surface-container-highest/50">AX-7729</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 z-10 flex flex-col gap-6">
+<!-- Agent Profile Block -->
+<div class="flex gap-4 items-start border-b border-outline-variant/30 pb-4">
+<!-- Photo Placeholder -->
+<div class="w-24 h-32 bg-surface-container-highest border border-primary-fixed-dim/30 relative overflow-hidden shrink-0 group cursor-pointer">
+<div class="absolute inset-0 bg-primary-fixed-dim/10 group-hover:bg-primary-fixed-dim/20 transition-colors z-10"></div>
+<img class="w-full h-full object-cover filter grayscale sepia-[.2] hue-rotate-[180deg]" data-alt="A gritty, high-contrast headshot of a tactical operative wearing sleek, dark combat gear with subtle cyber-blue illuminated accents. The lighting is dramatic, casting deep shadows against a stark, minimalist control room background. The overall aesthetic is dark mode, highly detailed, and futuristic military." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG0fLXO7VZP8y-75tyyOyjv_JI1782akJd1w5BDyd5z3Juuao1186OU_UozJlzgqQs6RrX0e2GrfWc-GqWbYAhHsNyGRYiYSQyPEoVx5BYo4oiNs7PaiDfneoiNbYEHuEk7NcoZ9CV8DGfIT43bXPS_kaGjcUW6HqZu-pROS_yOPGXClNg9uo23Ecm76WbqXAcO6xztLjD8_WHHJiQeweL1Un5jo91BLzDduyu9dCuHGGq_28sVCgvMQxt8wHYe1ByYsLmLPg353Dt"/>
+<!-- HUD overlay on photo -->
+<div class="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-background/90 to-transparent z-20 flex items-end p-1">
+<span class="font-mono-data text-[10px] text-primary-fixed-dim leading-none">BIO-SYNC: STABLE</span>
+</div>
+</div>
+<!-- Core Info -->
+<div class="flex flex-col gap-1">
+<h3 class="font-headline-md text-headline-md text-on-surface uppercase leading-tight">Vance, Kael</h3>
+<span class="font-label-caps text-label-caps text-secondary tracking-widest">Op-Commander</span>
+<div class="mt-2 flex flex-col gap-1 font-mono-data text-mono-data text-outline text-[11px]">
+<div class="flex justify-between"><span class="text-outline-variant">DOB:</span> <span>2184.04.12</span></div>
+<div class="flex justify-between"><span class="text-outline-variant">B-TYPE:</span> <span>O-NEG</span></div>
+<div class="flex justify-between"><span class="text-outline-variant">CLEARANCE:</span> <span class="text-tertiary-fixed-dim">LEVEL 5</span></div>
+</div>
+</div>
+</div>
+<!-- Skill Radar (CSS Visual Hack for UI density) -->
+<div class="flex flex-col gap-2">
+<h4 class="font-label-caps text-label-caps text-outline border-b border-outline/20 pb-1">Combat Metrics</h4>
+<div class="h-40 w-full relative flex items-center justify-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-surface-container-highest/20 to-transparent">
+<!-- Simulated Radar Grid -->
+<div class="absolute w-32 h-32 border border-outline-variant/30 rounded-full"></div>
+<div class="absolute w-20 h-20 border border-outline-variant/30 rounded-full"></div>
+<div class="absolute w-8 h-8 border border-outline-variant/30 rounded-full"></div>
+<!-- Axis Lines -->
+<div class="absolute w-full h-px bg-outline-variant/20"></div>
+<div class="absolute h-full w-px bg-outline-variant/20"></div>
+<div class="absolute w-full h-px bg-outline-variant/20 rotate-45"></div>
+<div class="absolute h-full w-px bg-outline-variant/20 rotate-45"></div>
+<!-- Data Polygon (Mocked with SVG) -->
+<svg class="absolute inset-0 w-full h-full drop-shadow-[0_0_8px_rgba(0,218,243,0.5)]" viewbox="0 0 100 100">
+<polygon fill="rgba(0,218,243,0.2)" points="50,15 80,40 70,85 30,85 15,40" stroke="#00daf3" stroke-linejoin="round" stroke-width="1.5"></polygon>
+</svg>
+<!-- Labels -->
+<span class="absolute top-1 font-mono-data text-[9px] text-primary-fixed-dim">TACTICAL</span>
+<span class="absolute bottom-1 font-mono-data text-[9px] text-primary-fixed-dim">ENDURANCE</span>
+<span class="absolute left-1 font-mono-data text-[9px] text-primary-fixed-dim">TECH</span>
+<span class="absolute right-1 font-mono-data text-[9px] text-primary-fixed-dim">STEALTH</span>
+</div>
+</div>
+<!-- Recent Logs / Mission History -->
+<div class="flex flex-col gap-2 flex-1">
+<h4 class="font-label-caps text-label-caps text-outline border-b border-outline/20 pb-1 flex justify-between">
+                        Deployment Logs
+                        <span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-primary transition-colors">open_in_new</span>
+</h4>
+<div class="flex flex-col gap-3 font-mono-data text-mono-data mt-2">
+<!-- Log Item -->
+<div class="flex flex-col gap-1 border-l-2 border-secondary pl-2 bg-gradient-to-r from-secondary/5 to-transparent py-1">
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-secondary">T-MINUS 04:22:11</span>
+<span class="text-outline-variant">LZ-ALPHA</span>
+</div>
+<p class="text-on-surface text-xs font-body-sm">Commenced perimeter sweep. Heat signatures nominal. Awaiting extraction coordinates.</p>
+</div>
+<!-- Log Item -->
+<div class="flex flex-col gap-1 border-l-2 border-outline-variant pl-2 py-1 opacity-70 hover:opacity-100 transition-opacity">
+<div class="flex justify-between items-center text-[11px]">
+<span class="text-outline">T-MINUS 48:12:00</span>
+<span class="text-outline-variant">BASE CAMP</span>
+</div>
+<p class="text-on-surface text-xs font-body-sm">Completed routine diagnostic on primary comms array. 100% efficiency.</p>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex gap-2 pt-4 border-t border-outline-variant/30 mt-auto">
+<button class="flex-1 bg-primary-fixed-dim text-on-primary-fixed font-label-caps text-label-caps py-2 px-4 rounded hover:bg-primary-fixed transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[18px]">radio</span>
+                        COMM LINK
+                    </button>
+<button class="px-4 border border-tertiary-fixed-dim/50 text-tertiary-fixed-dim font-label-caps text-label-caps rounded hover:bg-tertiary-fixed-dim/10 transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">block</span>
+</button>
+</div>
+</div>
+</aside>
+</main>
+</body></html>

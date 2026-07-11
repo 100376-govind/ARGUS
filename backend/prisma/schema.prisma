@@ -1,0 +1,115 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Reporter {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  email     String?    @db.VarChar(255)
+  phone     String?    @db.VarChar(50)
+  role      String     @default("civilian") // civilian, operator, first_responder, sensor
+  metadata  Json?
+  incidents Incident[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([role])
+}
+
+model Incident {
+  id                String           @id // E.g., #INC-4092 or UUID
+  version           Int              @default(1)
+  status            String           @default("pending") // pending, in-progress, dispatched, resolved
+  source            String // text, audio, image, video, webhook, bulk
+  incidentType      String           @default("other")
+  rawContent        String           @db.Text
+  structuredDesc    String           @db.Text
+  confidence        Float            @default(0.0)
+  lat               Float?
+  lng               Float?
+  locationName      String?          @db.VarChar(255)
+  extractedEntities Json // Locations, Hazards, People, Vehicles, Organizations
+  agentHistory      Json // History of reasoning & confidence across pipeline
+  auditTrail        Json // Timeline tracking versions & edits
+  metadata          Json?
+  tags              String[]
+  reporterId        String?          @db.Uuid
+  reporter          Reporter?        @relation(fields: [reporterId], references: [id])
+  media             Media[]
+  auditLogs         AuditLog[]
+  agentExecutions   AgentExecution[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@index([status])
+  @@index([incidentType])
+  @@index([createdAt])
+}
+
+model Media {
+  id         String    @id @default(uuid()) @db.Uuid
+  url        String    @db.Text // Firebase Storage signed url
+  type       String // image, audio, video
+  metadata   Json?
+  incidentId String?
+  incident   Incident? @relation(fields: [incidentId], references: [id])
+  createdAt  DateTime  @default(now())
+
+  @@index([incidentId])
+}
+
+model AgentExecution {
+  id           String    @id @default(uuid()) @db.Uuid
+  agentName    String // data-dispatcher, risk-evaluator, field-validator, etc.
+  incidentId   String
+  incident     Incident  @relation(fields: [incidentId], references: [id])
+  status       String // success, failed
+  confidence   Float
+  reasoning    String    @db.Text
+  outputData   Json
+  errorMessage String?   @db.Text
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime  @default(now())
+
+  @@index([incidentId])
+  @@index([agentName])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id])
+  changedBy  String // Operator ID, Clerk ID, or system
+  action     String // create, update_status, enrich_entities, etc.
+  oldValue   Json?
+  newValue   Json
+  createdAt  DateTime @default(now())
+
+  @@index([incidentId])
+}
+
+model SystemEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventName String // IncidentCreated, IncidentEnriched, etc.
+  payload   Json
+  status    String // published, failed
+  createdAt DateTime @default(now())
+
+  @@index([eventName])
+}
+
+model WebhookLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  source       String // twilio, pagerduty, generic, etc.
+  payload      Json
+  statusCode   Int
+  errorMessage String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+}

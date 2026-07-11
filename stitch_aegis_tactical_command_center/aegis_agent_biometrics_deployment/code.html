@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Aegis Tactical Command - Agents</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary": "#44ddc1",
+                        "surface-container-lowest": "#0b0f13",
+                        "tertiary-fixed": "#ffdad9",
+                        "tertiary-fixed-dim": "#ffb3b3",
+                        "on-error": "#690005",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed": "#00201a",
+                        "secondary-container": "#00bea4",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#00463b",
+                        "tertiary": "#ffe7e6",
+                        "tertiary-container": "#ffc1c0",
+                        "on-primary-fixed-variant": "#004f58",
+                        "on-surface-variant": "#bac9cc",
+                        "inverse-surface": "#e0e2e8",
+                        "surface-bright": "#363a3e",
+                        "on-secondary-fixed-variant": "#005145",
+                        "on-tertiary-fixed": "#400009",
+                        "surface-container-highest": "#31353a",
+                        "surface": "#101418",
+                        "on-primary-fixed": "#001f24",
+                        "surface-tint": "#00daf3",
+                        "secondary-fixed-dim": "#44ddc1",
+                        "on-primary-container": "#00626e",
+                        "background": "#101418",
+                        "on-tertiary-container": "#b4002b",
+                        "outline": "#849396",
+                        "error-container": "#93000a",
+                        "inverse-primary": "#006875",
+                        "on-surface": "#e0e2e8",
+                        "primary-fixed": "#9cf0ff",
+                        "surface-container": "#1c2024",
+                        "primary": "#c3f5ff",
+                        "on-secondary": "#00382f",
+                        "primary-container": "#00e5ff",
+                        "surface-container-high": "#262a2f",
+                        "surface-container-low": "#181c20",
+                        "surface-variant": "#31353a",
+                        "primary-fixed-dim": "#00daf3",
+                        "outline-variant": "#3b494c",
+                        "inverse-on-surface": "#2d3135",
+                        "on-tertiary-fixed-variant": "#920021",
+                        "on-background": "#e0e2e8",
+                        "surface-dim": "#101418",
+                        "secondary-fixed": "#68fadd",
+                        "on-primary": "#00363d",
+                        "on-tertiary": "#680014"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "panel-gap": "1px",
+                        "unit": "4px",
+                        "margin-desktop": "32px",
+                        "gutter": "16px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Inter"],
+                        "mono-data": ["Geist"],
+                        "headline-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-caps": ["Geist"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+                        "mono-data": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Global Scanline Effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.15;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #101418;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00daf3;
+        }
+
+        /* Sparkline Animation */
+        @keyframes sparkline-pulse {
+            0% { opacity: 0.5; stroke-width: 1; }
+            50% { opacity: 1; stroke-width: 2; filter: drop-shadow(0 0 4px #00daf3); }
+            100% { opacity: 0.5; stroke-width: 1; }
+        }
+        .animate-sparkline {
+            animation: sparkline-pulse 2s infinite ease-in-out;
+        }
+        
+        .agent-card-hover:hover {
+            box-shadow: 0 0 15px rgba(0, 218, 243, 0.2);
+            border-color: rgba(0, 218, 243, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-lg min-h-screen overflow-x-hidden relative selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="flex justify-between items-center w-full px-margin-desktop h-16 fixed top-0 z-50 bg-surface/80 backdrop-blur-xl font-body-lg text-body-lg border-b border-outline-variant/20 shadow-[0_0_15px_rgba(0,218,243,0.1)]">
+<div class="flex items-center gap-4">
+<span class="font-display-lg text-headline-md tracking-tighter text-primary-fixed-dim">Aegis Tactical Command</span>
+</div>
+<div class="flex items-center gap-6 hidden md:flex">
+<span class="text-on-surface-variant font-mono-data text-mono-data">Coordinates: 34.0522° N</span>
+<span class="text-on-surface-variant font-mono-data text-mono-data">118.2437° W</span>
+<span class="text-on-surface-variant font-mono-data text-mono-data flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-secondary-fixed animate-pulse"></span>Uptime: 99.9%</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container-highest/50 border border-outline-variant/50 rounded-DEFAULT py-1.5 pl-9 pr-4 text-body-sm font-body-sm focus:outline-none focus:border-primary-fixed-dim focus:ring-1 focus:ring-primary-fixed-dim text-on-surface placeholder:text-on-surface-variant/70 transition-all w-48 focus:w-64" placeholder="Search Data..." type="text"/>
+</div>
+<button class="text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all p-2 rounded-DEFAULT cursor-pointer active:scale-95 group">
+<span class="material-symbols-outlined group-hover:drop-shadow-[0_0_5px_rgba(0,218,243,0.5)]">notifications_active</span>
+</button>
+<button class="text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all p-2 rounded-DEFAULT cursor-pointer active:scale-95 group">
+<span class="material-symbols-outlined group-hover:drop-shadow-[0_0_5px_rgba(0,218,243,0.5)]">warning</span>
+</button>
+<button class="text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all p-2 rounded-DEFAULT cursor-pointer active:scale-95 group">
+<span class="material-symbols-outlined group-hover:drop-shadow-[0_0_5px_rgba(0,218,243,0.5)]">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full flex flex-col z-[60] bg-surface-container-lowest/90 backdrop-blur-2xl font-label-caps text-label-caps docked left-0 h-full w-16 hover:w-60 transition-all duration-300 border-r border-outline-variant/30 shadow-2xl group">
+<div class="h-16 flex items-center justify-center border-b border-outline-variant/20 p-2 shrink-0">
+<img alt="Command Logo" class="w-10 h-10 object-contain group-hover:w-12 group-hover:h-12 transition-all" data-alt="A stylized, glowing, futuristic tech crest logo for 'Aegis'. The logo is predominantly blue with neon lighting effects, emphasizing a high-tech, tactical, and secure brand identity. The background is a dark, textured surface to make the glowing elements pop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCV9IsO8LUClrLqm3QBRuvE1S1UKB5F9JIHYh541iZzYHpP4Ytg-C3svNIDcIzJe1bE6flbUETD-I_noQY5Rez7t3WOugEes5aRTCXJd1j4WZnR6mixc41iq9aJtSlYsQec_XPFNBP-lP0qtNZFz459sIkxtE11_6v3i86jopURfv7SrKULTXaw66au-S4pOqL6beVhWXRJWfI02zOkNMWFLNMJW3IkD2Fcy0Qll0zWeYuyRTQGniPMonmKoCK6sYqM4NKCoqb0yjQb"/>
+<div class="ml-3 hidden group-hover:block whitespace-nowrap overflow-hidden transition-all duration-300">
+<div class="font-headline-sm text-primary">Aegis Prime</div>
+<div class="text-on-surface-variant text-[10px]">Sector-7 Control</div>
+</div>
+</div>
+<nav class="flex-1 py-4 flex flex-col gap-2 px-2 overflow-y-auto overflow-x-hidden">
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT text-outline hover:text-on-surface hover:bg-surface-container-highest/40 group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0" style="font-variation-settings: 'FILL' 0;">grid_view</span>
+<span class="hidden group-hover:block whitespace-nowrap">Overview</span>
+</a>
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT text-outline hover:text-on-surface hover:bg-surface-container-highest/40 group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0" style="font-variation-settings: 'FILL' 0;">emergency</span>
+<span class="hidden group-hover:block whitespace-nowrap">Incidents</span>
+</a>
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT text-outline hover:text-on-surface hover:bg-surface-container-highest/40 group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0" style="font-variation-settings: 'FILL' 0;">inventory_2</span>
+<span class="hidden group-hover:block whitespace-nowrap">Resources</span>
+</a>
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT bg-secondary-container/20 text-secondary border-l-4 border-secondary group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0" style="font-variation-settings: 'FILL' 1;">groups</span>
+<span class="hidden group-hover:block whitespace-nowrap">Agents</span>
+</a>
+</nav>
+<div class="border-t border-outline-variant/20 p-2 pb-4 shrink-0 flex flex-col gap-2">
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT text-outline hover:text-on-surface hover:bg-surface-container-highest/40 group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0">settings</span>
+<span class="hidden group-hover:block whitespace-nowrap">Settings</span>
+</a>
+<a class="flex items-center gap-4 p-3 rounded-DEFAULT text-outline hover:text-on-surface hover:bg-surface-container-highest/40 group-hover:translate-x-1 transition-all cursor-pointer" href="#">
+<span class="material-symbols-outlined shrink-0">help</span>
+<span class="hidden group-hover:block whitespace-nowrap">Support</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-16 pt-16 min-h-screen p-gutter md:p-margin-desktop transition-all duration-300">
+<!-- Header & Filters -->
+<div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface mb-2 tracking-tight">Active Operatives</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">Real-time telemetry and status for deployed field agents across all active sectors.</p>
+</div>
+<div class="flex flex-wrap gap-3">
+<div class="bg-surface-container/60 border border-outline-variant/30 rounded-DEFAULT p-1 flex">
+<button class="px-4 py-1.5 text-body-sm font-body-sm rounded-DEFAULT bg-primary/10 text-primary border border-primary/30">All</button>
+<button class="px-4 py-1.5 text-body-sm font-body-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors">Tactical</button>
+<button class="px-4 py-1.5 text-body-sm font-body-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors">Paramedic</button>
+<button class="px-4 py-1.5 text-body-sm font-body-sm rounded-DEFAULT text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest/50 transition-colors">Engineer</button>
+</div>
+<div class="bg-surface-container/60 border border-outline-variant/30 rounded-DEFAULT p-1 flex">
+<select class="bg-transparent border-none text-body-sm font-body-sm text-on-surface-variant focus:ring-0 cursor-pointer py-1.5 px-4 pr-8">
+<option class="bg-surface" value="all">All Sectors</option>
+<option class="bg-surface" value="s7">Sector 7</option>
+<option class="bg-surface" value="s4">Sector 4</option>
+<option class="bg-surface" value="alpha">Zone Alpha</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Agent Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-gutter md:gap-4">
+<!-- Agent Card 1 -->
+<div class="bg-surface-container-low/40 backdrop-blur-md border border-outline-variant/20 rounded-lg p-4 relative overflow-hidden agent-card-hover transition-all duration-300">
+<!-- Decorative bracket -->
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-primary-fixed-dim/30 m-2"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-mono-data text-mono-data text-primary-fixed-dim mb-1">ID: AX-7742</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">J. Vance</h3>
+<span class="inline-block px-2 py-0.5 mt-1 text-[10px] font-label-caps uppercase border border-secondary/30 text-secondary rounded-sm bg-secondary/10">Tactical</span>
+</div>
+<div class="w-12 h-12 rounded-full border-2 border-outline-variant overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="A rugged, futuristic military operative portrait, close up, wearing dark tactical gear with subtle neon blue highlights. Serious expression, cinematic lighting, gritty cyberpunk aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxf34Blg48T--m-iLhmbDKqqzXd-yNTKB932YBEbAg21017W7VeIg0byN1H5L51rUOhgbpcki2sB8HGKGPD-Lf-6IPd5FTIEYsmyawDCnfUoceBCB1nHT7wkw0_7gkmaeNWiwFrFE43DYMf8yFTvsodAzOqknF_VncAgdVXi5lv75DD64qysl2ups53Q7cKUzEcjAXMyx1SpeLQR7gPwRs8ONlnhaVEPN9hIsNpsSv-38PoT-t64bQgi4jQ0a8q2Bf8DH9xu2Qg_09"/>
+</div>
+</div>
+<div class="space-y-3 font-mono-data text-mono-data mb-4">
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">favorite</span> HR</span>
+<span class="text-on-surface">82 BPM</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">air</span> O2</span>
+<span class="text-on-surface">98%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">location_on</span> LOC</span>
+<span class="text-on-surface">Sector 7 - Grid B</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant/20">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-1">Vitals Trend</div>
+<svg class="w-full h-12" preserveaspectratio="none" viewbox="0 0 100 30">
+<path class="animate-sparkline" d="M0,15 L10,12 L20,20 L30,5 L40,25 L50,15 L60,18 L70,10 L80,22 L90,15 L100,12" fill="none" stroke="#00daf3" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+</div>
+<!-- Agent Card 2 -->
+<div class="bg-surface-container-low/40 backdrop-blur-md border border-outline-variant/20 rounded-lg p-4 relative overflow-hidden agent-card-hover transition-all duration-300">
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-primary-fixed-dim/30 m-2"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-mono-data text-mono-data text-primary-fixed-dim mb-1">ID: MD-2291</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">S. Carter</h3>
+<span class="inline-block px-2 py-0.5 mt-1 text-[10px] font-label-caps uppercase border border-tertiary-fixed-dim/30 text-tertiary-fixed-dim rounded-sm bg-tertiary-fixed-dim/10">Paramedic</span>
+</div>
+<div class="w-12 h-12 rounded-full border-2 border-outline-variant overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="A portrait of a futuristic field medic, wearing a sleek grey uniform with a subtle red medical cross insignia. Focused expression, clean lighting, sterile yet advanced technological environment background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtczeRHuS3fVm8TS6e5wGGPwXUC-kPJoo4iWibP1oMH1qKtSt8VtVas-7dW3_WanaOERKmw-tYubIhR52qNHNKQIWPnDO9RJMzfFTZJ0sMcGSvamT4PiTfKUlAMtzSrnvpq2SFoZk-LqKw-kMkZ9RenY23DtB3W0WY8TU8bab2XQT3YNzQdZ08YOu9ShGc0YF55G0jzDMbsA44lwhRTjJLL2u6NfG_lzCLXQjS0mxonQYrKuzflN8KefKARhkYCoEbHdMRNOBiKBbs"/>
+</div>
+</div>
+<div class="space-y-3 font-mono-data text-mono-data mb-4">
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">favorite</span> HR</span>
+<span class="text-on-surface">68 BPM</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">air</span> O2</span>
+<span class="text-on-surface">99%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">location_on</span> LOC</span>
+<span class="text-on-surface">Zone Alpha - Med Bay</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant/20">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-1">Vitals Trend</div>
+<svg class="w-full h-12" preserveaspectratio="none" viewbox="0 0 100 30">
+<path class="animate-sparkline" d="M0,15 L15,16 L30,14 L45,15 L60,13 L75,15 L90,16 L100,15" fill="none" stroke="#00daf3" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+</div>
+<!-- Agent Card 3 (Elevated HR) -->
+<div class="bg-surface-container-low/40 backdrop-blur-md border border-error/40 shadow-[0_0_15px_rgba(255,180,171,0.1)] rounded-lg p-4 relative overflow-hidden agent-card-hover transition-all duration-300">
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-error/50 m-2"></div>
+<div class="absolute top-2 right-2 flex items-center gap-1 text-error text-[10px] font-label-caps animate-pulse">
+<span class="w-2 h-2 rounded-full bg-error"></span> Alert
+                </div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-mono-data text-mono-data text-error mb-1">ID: EG-9011</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">K. Lin</h3>
+<span class="inline-block px-2 py-0.5 mt-1 text-[10px] font-label-caps uppercase border border-outline/30 text-outline rounded-sm bg-outline/10">Engineer</span>
+</div>
+<div class="w-12 h-12 rounded-full border-2 border-error/50 overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="A portrait of a cybernetic engineer, wearing heavy protective gear with technical readouts reflecting on their visor. Grungy industrial setting, intense dramatic lighting emphasizing stress or action." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYpBrAjBs-iRM6t5pFOAi7TYAI5JjfNI9OS6SP_nKbwQLa5aaJflMSpEZRbMFYZCVFeZwcUpqJE0LP8SyZIzHmemkDKbEi9mxtNTXXCgZNiY5xyvdkUhORu0Mp3xSflElapfgCsJR20l0MREWf_m-DkPFUR6ZxKL4wiSAmliR7Utxbsa3oxtzsds4TVKZDP1FRLKd2JtGAT9njetvk3Shw4KB-EznunYLsu9kmSXNe6YSXknmlCWpjeM6kQVZbMkrlNa2pNB2li3NT"/>
+</div>
+</div>
+<div class="space-y-3 font-mono-data text-mono-data mb-4">
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">favorite</span> HR</span>
+<span class="text-error font-bold">142 BPM</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">air</span> O2</span>
+<span class="text-on-surface">94%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">location_on</span> LOC</span>
+<span class="text-on-surface">Sector 4 - Sub-Level</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant/20">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-1">Vitals Trend</div>
+<svg class="w-full h-12" preserveaspectratio="none" viewbox="0 0 100 30">
+<path class="animate-sparkline" d="M0,20 L5,5 L10,25 L15,10 L20,28 L25,2 L30,22 L35,8 L40,26 L45,4 L50,24 L55,6 L60,28 L65,3 L70,25 L75,5 L80,26 L85,4 L90,24 L95,6 L100,20" fill="none" stroke="#ffb4ab" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+</div>
+<!-- Agent Card 4 -->
+<div class="bg-surface-container-low/40 backdrop-blur-md border border-outline-variant/20 rounded-lg p-4 relative overflow-hidden agent-card-hover transition-all duration-300">
+<div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-primary-fixed-dim/30 m-2"></div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="font-mono-data text-mono-data text-primary-fixed-dim mb-1">ID: AX-1102</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">R. Sterling</h3>
+<span class="inline-block px-2 py-0.5 mt-1 text-[10px] font-label-caps uppercase border border-secondary/30 text-secondary rounded-sm bg-secondary/10">Tactical</span>
+</div>
+<div class="w-12 h-12 rounded-full border-2 border-outline-variant overflow-hidden shrink-0">
+<img class="w-full h-full object-cover" data-alt="A stealth operative portrait in low light. The agent wears a sleek, dark hood and mask with glowing optical sensors. Background is dark and blurry, emphasizing the operative's covert nature. High tech cinematic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtBkdW_axVjCHvq10Tkthhh_UForXyuDW_wVE-ZJMSSW14-Ktktu20c8lq2VjFts8ae86hQuG9NzlD_zaYXyoMMUmwkPv0c03icWCfIYaxbNQ2PDoW5wgfuBPnlM9pSVg2rVJci0sLccjNEa4qGku3rWpQkKILgIaYOiqIo3fDvYa7cG_cmmm2LfwCoqD3Zq_kbGjqVG4AXuf2OAwL82JR9gZq1AKLCvCfKDf1epAPQQWatV_ppgLMtxZoO7yugI4J3p_BbuxzhB1L"/>
+</div>
+</div>
+<div class="space-y-3 font-mono-data text-mono-data mb-4">
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">favorite</span> HR</span>
+<span class="text-on-surface">58 BPM</span>
+</div>
+<div class="flex justify-between items-center border-b border-outline-variant/10 pb-1">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">air</span> O2</span>
+<span class="text-on-surface">100%</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">location_on</span> LOC</span>
+<span class="text-on-surface">Sector 7 - Perimeter</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-outline-variant/20">
+<div class="text-[10px] font-label-caps text-on-surface-variant mb-1">Vitals Trend</div>
+<svg class="w-full h-12" preserveaspectratio="none" viewbox="0 0 100 30">
+<path class="animate-sparkline" d="M0,18 L20,18 L25,12 L30,24 L35,18 L55,18 L60,10 L65,26 L70,18 L100,18" fill="none" stroke="#00daf3" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+</svg>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AEGIS - Incidents</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=Geist:wght@500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary": "#44ddc1",
+                        "surface-container-lowest": "#0b0f13",
+                        "tertiary-fixed": "#ffdad9",
+                        "tertiary-fixed-dim": "#ffb3b3",
+                        "on-error": "#690005",
+                        "on-error-container": "#ffdad6",
+                        "on-secondary-fixed": "#00201a",
+                        "secondary-container": "#00bea4",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#00463b",
+                        "tertiary": "#ffe7e6",
+                        "tertiary-container": "#ffc1c0",
+                        "on-primary-fixed-variant": "#004f58",
+                        "on-surface-variant": "#bac9cc",
+                        "inverse-surface": "#e0e2e8",
+                        "surface-bright": "#363a3e",
+                        "on-secondary-fixed-variant": "#005145",
+                        "on-tertiary-fixed": "#400009",
+                        "surface-container-highest": "#31353a",
+                        "surface": "#101418",
+                        "on-primary-fixed": "#001f24",
+                        "surface-tint": "#00daf3",
+                        "secondary-fixed-dim": "#44ddc1",
+                        "on-primary-container": "#00626e",
+                        "background": "#101418",
+                        "on-tertiary-container": "#b4002b",
+                        "outline": "#849396",
+                        "error-container": "#93000a",
+                        "inverse-primary": "#006875",
+                        "on-surface": "#e0e2e8",
+                        "primary-fixed": "#9cf0ff",
+                        "surface-container": "#1c2024",
+                        "primary": "#c3f5ff",
+                        "on-secondary": "#00382f",
+                        "primary-container": "#00e5ff",
+                        "surface-container-high": "#262a2f",
+                        "surface-container-low": "#181c20",
+                        "surface-variant": "#31353a",
+                        "primary-fixed-dim": "#00daf3",
+                        "outline-variant": "#3b494c",
+                        "inverse-on-surface": "#2d3135",
+                        "on-tertiary-fixed-variant": "#920021",
+                        "on-background": "#e0e2e8",
+                        "surface-dim": "#101418",
+                        "secondary-fixed": "#68fadd",
+                        "on-primary": "#00363d",
+                        "on-tertiary": "#680014"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "panel-gap": "1px",
+                        "unit": "4px",
+                        "margin-desktop": "32px",
+                        "gutter": "16px",
+                        "margin-mobile": "16px"
+                    },
+                    fontFamily: {
+                        "body-lg": ["Inter"],
+                        "mono-data": ["Geist"],
+                        "headline-md": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-caps": ["Geist"],
+                        "display-lg": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    fontSize: {
+                        "body-lg": ["16px", { lineHeight: "24px", letterSpacing: "0em", fontWeight: "400" }],
+                        "mono-data": ["13px", { lineHeight: "18px", letterSpacing: "0em", fontWeight: "500" }],
+                        "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "0.01em", fontWeight: "600" }],
+                        "headline-sm": ["18px", { lineHeight: "24px", letterSpacing: "0.02em", fontWeight: "600" }],
+                        "label-caps": ["12px", { lineHeight: "16px", letterSpacing: "0.1em", fontWeight: "600" }],
+                        "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "body-sm": ["14px", { lineHeight: "20px", letterSpacing: "0em", fontWeight: "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #0A0E12; }
+        .glass-panel {
+            background: rgba(11, 15, 19, 0.8);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+        }
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        .glow-active {
+            box-shadow: 0 0 15px rgba(0, 218, 243, 0.1);
+        }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #00daf3; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-on-surface font-body-sm h-screen overflow-hidden flex selection:bg-primary-container/30">
+<div class="fixed inset-0 scanlines z-[100]"></div>
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col z-[60] bg-surface-container-lowest/90 backdrop-blur-2xl border-r border-outline-variant/30 shadow-2xl docked left-0 h-full w-16 hover:w-60 transition-all duration-300 group">
+<div class="h-16 flex items-center justify-center border-b border-outline-variant/30 shrink-0">
+<img alt="Command Logo" class="w-8 h-8 rounded group-hover:hidden" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCV9IsO8LUClrLqm3QBRuvE1S1UKB5F9JIHYh541iZzYHpP4Ytg-C3svNIDcIzJe1bE6flbUETD-I_noQY5Rez7t3WOugEes5aRTCXJd1j4WZnR6mixc41iq9aJtSlYsQec_XPFNBP-lP0qtNZFz459sIkxtE11_6v3i86jopURfv7SrKULTXaw66au-S4pOqL6beVhWXRJWfI02zOkNMWFLNMJW3IkD2Fcy0Qll0zWeYuyRTQGniPMonmKoCK6sYqM4NKCoqb0yjQb">
+<div class="hidden group-hover:flex items-center space-x-3 px-4 w-full">
+<img alt="Command Logo" class="w-8 h-8 rounded" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCV9IsO8LUClrLqm3QBRuvE1S1UKB5F9JIHYh541iZzYHpP4Ytg-C3svNIDcIzJe1bE6flbUETD-I_noQY5Rez7t3WOugEes5aRTCXJd1j4WZnR6mixc41iq9aJtSlYsQec_XPFNBP-lP0qtNZFz459sIkxtE11_6v3i86jopURfv7SrKULTXaw66au-S4pOqL6beVhWXRJWfI02zOkNMWFLNMJW3IkD2Fcy0Qll0zWeYuyRTQGniPMonmKoCK6sYqM4NKCoqb0yjQb">
+<div>
+<h1 class="font-headline-sm text-primary text-headline-sm">Aegis Prime</h1>
+<p class="font-label-caps text-label-caps text-outline">Sector-7 Control</p>
+</div>
+</div>
+</div>
+<div class="flex-1 py-4 flex flex-col gap-2 overflow-y-auto">
+<a class="flex items-center px-4 py-3 text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0">grid_view</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Overview</span>
+</a>
+<a class="flex items-center px-4 py-3 bg-secondary-container/20 text-secondary border-l-4 border-secondary hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0" style="font-variation-settings: 'FILL' 1;">emergency</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Incidents</span>
+</a>
+<a class="flex items-center px-4 py-3 text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0">inventory_2</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Resources</span>
+</a>
+<a class="flex items-center px-4 py-3 text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0">groups</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Agents</span>
+</a>
+</div>
+<div class="mt-auto border-t border-outline-variant/30 py-4 flex flex-col gap-2">
+<a class="flex items-center px-4 py-3 text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0">settings</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Settings</span>
+</a>
+<a class="flex items-center px-4 py-3 text-outline hover:text-on-surface hover:bg-surface-container-highest/40 transition-all group-hover:translate-x-1 cursor-pointer active:scale-95" href="#">
+<span class="material-symbols-outlined shrink-0">help</span>
+<span class="ml-4 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap font-label-caps text-label-caps">Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col ml-16 bg-background h-screen">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-16 fixed top-0 z-50 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/20 shadow-[0_0_15px_rgba(0,218,243,0.1)] docked full-width top-0 ml-16" style="width: calc(100% - 64px);">
+<div class="flex items-center gap-6">
+<h2 class="font-display-lg text-headline-md tracking-tighter text-primary-fixed-dim">Aegis Tactical Command</h2>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex gap-4 font-mono-data text-mono-data text-on-surface-variant">
+<span class="">Coordinates: 34.0522° N</span>
+<span class="">118.2437° W</span>
+<span class="text-secondary">Uptime: 99.9%</span>
+</div>
+<div class="flex gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all rounded cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">notifications_active</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all rounded cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">warning</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-primary-container/20 hover:text-primary transition-all rounded cursor-pointer active:scale-95">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="flex-1 mt-16 p-gutter flex gap-panel-gap overflow-hidden">
+<!-- Incidents Grid -->
+<div class="flex-1 flex flex-col glass-panel rounded-l-lg overflow-hidden relative">
+<div class="h-12 bg-surface-container-highest/50 flex items-center px-4 border-b border-outline-variant/20">
+<h3 class="font-headline-sm text-headline-sm text-on-surface flex-1">Active Incidents Database</h3>
+<div class="relative w-64">
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input class="w-full bg-surface-container border-b border-outline-variant focus:border-primary-container focus:ring-0 text-on-surface text-body-sm pl-8 py-1 transition-all h-8 rounded-t" placeholder="Search ID, Location..." type="text">
+</div>
+</div>
+<div class="flex-1 overflow-auto">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div><table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-surface-container-lowest/90 backdrop-blur z-10">
+<tr class="font-label-caps text-label-caps text-outline-variant border-b border-outline-variant/20">
+<th class="p-3">ID</th>
+<th class="p-3">Priority</th>
+<th class="p-3">Type</th>
+<th class="p-3">Location</th>
+<th class="p-3">Response Team</th>
+<th class="p-3">Status</th>
+</tr>
+</thead>
+<tbody class="font-mono-data text-mono-data text-on-surface">
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-highest/30 cursor-pointer transition-colors bg-primary-container/5 relative">
+<td class="p-3 text-on-surface-variant">#INC-4092</td>
+<td class="p-3"><span class="inline-flex items-center gap-1 text-error"><span class="w-2 h-2 rounded-full bg-error animate-pulse"></span> Critical</span></td>
+<td class="p-3">Chemical Spill</td>
+<td class="p-3">Sector 7G, Industrial Park</td>
+<td class="p-3 text-secondary">Bravo-4, Hazmat</td>
+<td class="p-3 text-secondary">In Progress</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-highest/30 cursor-pointer transition-colors">
+<td class="p-3 text-on-surface-variant">#INC-4091</td>
+<td class="p-3"><span class="inline-flex items-center gap-1 text-tertiary-container"><span class="w-2 h-2 rounded-full bg-tertiary-container"></span> High</span></td>
+<td class="p-3">Structure Fire</td>
+<td class="p-3">Downtown Core, Block 4</td>
+<td class="p-3 text-on-surface-variant">Alpha-1, Engine 9</td>
+<td class="p-3 text-on-surface-variant">Dispatched</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-highest/30 cursor-pointer transition-colors">
+<td class="p-3 text-on-surface-variant">#INC-4090</td>
+<td class="p-3"><span class="inline-flex items-center gap-1 text-secondary-container"><span class="w-2 h-2 rounded-full bg-secondary-container"></span> Medium</span></td>
+<td class="p-3">Medical Emergency</td>
+<td class="p-3">Transit Hub Alpha</td>
+<td class="p-3 text-on-surface-variant">Med-7</td>
+<td class="p-3 text-secondary">In Progress</td>
+</tr>
+<tr class="border-b border-outline-variant/10 hover:bg-surface-container-highest/30 cursor-pointer transition-colors">
+<td class="p-3 text-on-surface-variant">#INC-4088</td>
+<td class="p-3"><span class="inline-flex items-center gap-1 text-error"><span class="w-2 h-2 rounded-full bg-error"></span> Critical</span></td>
+<td class="p-3">Grid Failure</td>
+<td class="p-3">Substation Node 12</td>
+<td class="p-3 text-on-surface-variant">Tech-Omega</td>
+<td class="p-3 text-on-surface-variant">Dispatched</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Detail Side Panel -->
+<div class="w-96 flex flex-col gap-panel-gap">
+<!-- Map Widget -->
+<div class="h-64 glass-panel rounded-tr-lg relative overflow-hidden group">
+<div class="absolute inset-0 bg-[url('placeholder')] bg-cover bg-center opacity-40 grayscale sepia-[.2] hue-rotate-[180deg]" data-alt="A dark, high-contrast tactical satellite map of an industrial sector, glowing cyan routes, red critical incident markers, military UI overlay, minimalist HUD style."></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest to-transparent"></div>
+<div class="absolute top-2 left-2 bg-surface-container-lowest/80 backdrop-blur px-2 py-1 border border-outline-variant/50 font-label-caps text-label-caps text-primary">
+                        SITREP: #INC-4092
+                    </div>
+<!-- Map Marker -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+<div class="w-12 h-12 rounded-full border border-error bg-error/20 animate-ping absolute"></div>
+<span class="material-symbols-outlined text-error text-[32px] relative z-10 drop-shadow-[0_0_8px_rgba(255,180,171,0.8)]">warning</span>
+</div>
+</div>
+<!-- Drone Feed -->
+<div class="flex-1 glass-panel rounded-br-lg p-4 flex flex-col relative overflow-hidden">
+<div class="flex justify-between items-center mb-4">
+<h4 class="font-label-caps text-label-caps text-outline-variant">LIVE FEED: DRONE-04</h4>
+<span class="flex items-center gap-2 text-error font-mono-data text-[10px]"><span class="w-1.5 h-1.5 bg-error rounded-full animate-pulse"></span> REC</span>
+</div>
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant/30 rounded relative overflow-hidden flex items-center justify-center">
+<div class="absolute inset-0 bg-[url('placeholder')] bg-cover bg-center opacity-60 grayscale" data-alt="Grainy, night-vision style drone camera footage looking down at an industrial facility with smoke rising, tactical crosshairs overlay, highly technical interface elements."></div>
+<!-- HUD Elements -->
+<div class="absolute inset-0 pointer-events-none p-2 flex flex-col justify-between font-mono-data text-[10px] text-primary/70">
+<div class="flex justify-between">
+<span class="">ALT: 450M</span>
+<span class="">SPD: 24KPH</span>
+</div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border border-primary/30 w-16 h-16 rounded-full flex items-center justify-center">
+<div class="w-1 h-4 bg-primary/50 absolute top-0"></div>
+<div class="w-1 h-4 bg-primary/50 absolute bottom-0"></div>
+<div class="w-4 h-1 bg-primary/50 absolute left-0"></div>
+<div class="w-4 h-1 bg-primary/50 absolute right-0"></div>
+</div>
+<div class="flex justify-between">
+<span class="">IR: ACTIVE</span>
+<span class="">TGT: LOCK</span>
+</div>
+</div>
+</div>
+<!-- Details Data -->
+<div class="mt-4 grid grid-cols-2 gap-4 font-mono-data text-mono-data text-on-surface-variant">
+<div>
+<span class="block text-outline text-[10px] uppercase mb-1">Commander</span>
+<span class="text-on-surface">Cpt. Reynolds</span>
+</div>
+<div>
+<span class="block text-outline text-[10px] uppercase mb-1">ETA</span>
+<span class="text-secondary">Arrived (04:12m)</span>
+</div>
+</div>
+<button class="mt-4 w-full py-2 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,218,243,0.2)] transition-all font-label-caps text-label-caps rounded">
+                        DEPLOY REINFORCEMENTS
+                    </button>
+<!-- Decorative bracket -->
+<div class="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-outline-variant/50"></div>
+</div>
+</div>
+</div>
+</main>
+
+
+</body></html>
