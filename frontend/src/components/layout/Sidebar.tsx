@@ -10,7 +10,6 @@ const mainNavItems: NavItem[] = [
   { label: "Incidents", icon: "emergency", href: "/dashboard/incidents" },
   { label: "Agents", icon: "groups", href: "/dashboard/agents" },
   { label: "Communications", icon: "cell_tower", href: "/dashboard/communications" },
-  { label: "Compliance", icon: "gavel", href: "/dashboard/compliance" },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -106,6 +105,17 @@ export default function Sidebar() {
                   >
                     <span className="material-symbols-outlined text-[15px]">description</span>
                     <span className="uppercase tracking-widest">Reports</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/compliance"
+                    className={`flex items-center gap-2 py-1.5 px-2 rounded-sm text-[11px] transition-all ${
+                      pathname === "/dashboard/compliance"
+                        ? "text-primary font-bold bg-primary/10 border-l-2 border-primary"
+                        : "text-outline hover:text-on-surface"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[15px]">gavel</span>
+                    <span className="uppercase tracking-widest">Compliance</span>
                   </Link>
                 </div>
               )}

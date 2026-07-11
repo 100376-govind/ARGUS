@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import incidentsData from "@/data/incidents.json";
 import agentsData from "@/data/agents.json";
-import type { AIAgent, FieldOperative, RosterAgent } from "@/types";
+import type { Incident, FieldOperative, RosterAgent } from "@/types";
 
 const fieldOperatives = agentsData.fieldOperatives as FieldOperative[];
 const roster = agentsData.roster as RosterAgent[];
@@ -15,7 +16,7 @@ const tabs: { key: TabKey; label: string; icon: string }[] = [
   { key: "roster", label: "Roster", icon: "badge" },
 ];
 
-const statusStyles: Record<string, { bg: string; text: string }> = {
+const rosterStatusStyles: Record<string, { bg: string; text: string }> = {
   active: { bg: "bg-secondary/20", text: "text-secondary" },
   deployed: { bg: "bg-secondary/20", text: "text-secondary" },
   standby: { bg: "bg-primary-fixed-dim/20", text: "text-primary-fixed-dim" },
@@ -32,34 +33,291 @@ const specialtyStyles: Record<string, string> = {
   medic: "bg-secondary/20 text-secondary border border-secondary/30",
 };
 
+const statusStyles: Record<string, { bg: string; text: string; dot: string }> = {
+  Idle: { bg: "bg-outline/20", text: "text-outline", dot: "bg-outline" },
+  Processing: { bg: "bg-primary/20", text: "text-primary-fixed-dim", dot: "bg-primary-fixed-dim shadow-[0_0_6px_rgba(0,218,243,0.6)] animate-pulse" },
+  Waiting: { bg: "bg-amber-500/20", text: "text-amber-400", dot: "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.6)]" },
+  Completed: { bg: "bg-emerald-500/20", text: "text-emerald-400", dot: "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" },
+  Error: { bg: "bg-error/20", text: "text-error", dot: "bg-error shadow-[0_0_6px_rgba(239,68,68,0.6)] animate-ping" }
+};
+
+const healthStyles: Record<string, { text: string; bg: string }> = {
+  Healthy: { text: "text-emerald-400", bg: "bg-emerald-500/10 border border-emerald-500/20" },
+  Warning: { text: "text-amber-400", bg: "bg-amber-500/10 border border-amber-500/20" },
+  Offline: { text: "text-error", bg: "bg-error/10 border border-error/20" }
+};
+
+const incidents = incidentsData as Incident[];
+
+// Haversine formula to calculate distance in km
+const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// computeCorrelation for a single report (used to evaluate baseline AI confidence)
+const computeCorrelation = (current: Incident) => {
+  const others = incidents.filter(i => i.id !== current.id);
+  const tokenize = (t: string) => new Set((t || "").toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
+  const jaccard = (a: Set<string>, b: Set<string>) => { if (!a.size || !b.size) return 0; const inter = [...a].filter(x => b.has(x)).length; return Math.round((inter / new Set([...a, ...b]).size) * 100); };
+  const locSim = (c: Incident, o: Incident) => { if (c.coordinates && o.coordinates) { const d = haversine(c.coordinates.lat, c.coordinates.lng, o.coordinates.lat, o.coordinates.lng); if (d <= 0.5) return 100; if (d <= 2) return 80; if (d <= 5) return 50; if (d <= 10) return 20; return 0; } return c.location === o.location ? 100 : 0; };
+  const typeSim = (a: string, b: string) => { const x = a.toLowerCase(), y = b.toLowerCase(); return x === y ? 100 : (x.includes(y) || y.includes(x)) ? 50 : 0; };
+  const timeSim = (a: string, b: string) => { const h = Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 3600000; if (h <= 1) return 100; if (h <= 4) return 80; if (h <= 12) return 50; if (h <= 24) return 20; return 0; };
+
+  const curTokens = tokenize(`${current.type} ${current.location} ${current.description || ""}`);
+  const supporting: any[] = [];
+  let best: any = null, maxSim = 0;
+
+  for (const o of others) {
+    const kw = jaccard(curTokens, tokenize(`${o.type} ${o.location} ${o.description || ""}`));
+    const loc = locSim(current, o);
+    const typ = typeSim(current.type, o.type);
+    const tm = timeSim(current.timestamp, o.timestamp);
+    const hasLoc = !!(current.coordinates && o.coordinates);
+    const overall = hasLoc ? Math.round(kw * 0.25 + loc * 0.35 + typ * 0.25 + tm * 0.15) : Math.round(kw * 0.4 + typ * 0.4 + tm * 0.2);
+    if (overall >= 50) supporting.push({ incidentId: o.id.replace("#", ""), overallSimilarity: overall, keywordSimilarity: kw, locationSimilarity: loc, incidentSimilarity: typ, timeSimilarity: tm });
+    if (overall > maxSim) { maxSim = overall; best = { kw, loc, typ, tm, id: o.id.replace("#", ""), overall }; }
+  }
+  supporting.sort((a, b) => b.overallSimilarity - a.overallSimilarity);
+  return { best, supporting: supporting.slice(0, 5), confidence: maxSim };
+};
+
 export default function AgentsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("ai");
   const [selectedRosterId, setSelectedRosterId] = useState<string>(roster[0]?.id || "");
-  const [aiAgents, setAiAgents] = useState<AIAgent[]>(agentsData.aiAgents as AIAgent[]);
+  const [backendAgents, setBackendAgents] = useState<any[]>([]);
+  const [customValData, setCustomValData] = useState<Record<string, any>>({});
 
+  // Sync validation data from localStorage
   useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        const res = await fetch("http://localhost:3001/api/agents/status", {
-          headers: {
-            "Authorization": "Bearer mock-admin-token"
+    const loadCustomVal = () => {
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("argus-custom-validation-data");
+          if (stored) {
+            setCustomValData(JSON.parse(stored));
           }
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && Array.isArray(json.data)) {
-            setAiAgents(json.data);
-          }
+        } catch (e) {
+          console.error("Failed to load custom validation data", e);
         }
-      } catch (err) {
-        console.error("Failed to fetch real-time agents:", err);
       }
     };
-    
+
+    loadCustomVal();
+
+    // Listen for storage updates
+    window.addEventListener("storage", loadCustomVal);
+    const interval = setInterval(loadCustomVal, 1000);
+
+    return () => {
+      window.removeEventListener("storage", loadCustomVal);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Fetch agent metrics from the backend status API
+  const fetchAgents = async () => {
+    try {
+      const res = await fetch("http://localhost:3001/api/agents/status", {
+        headers: {
+          "Authorization": "Bearer mock-admin-token"
+        }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          setBackendAgents(json.data);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch real-time agents:", err);
+    }
+  };
+
+  useEffect(() => {
     fetchAgents();
     const interval = setInterval(fetchAgents, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  // Group all incidents by location
+  const groupedByLocation = useMemo(() => {
+    const groups: Record<string, Incident[]> = {};
+    for (const inc of incidents) {
+      if (!groups[inc.location]) groups[inc.location] = [];
+      groups[inc.location].push(inc);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, []);
+
+  // Filter to validated locations
+  const validatedLocations = useMemo(() => {
+    const valid: string[] = [];
+    for (const [location, reports] of groupedByLocation) {
+      if (customValData[location]) {
+        valid.push(location);
+        continue;
+      }
+
+      // Run 7 baseline checks
+      const multipleReports = reports.length > 1;
+      const typeCounts: Record<string, number> = {};
+      reports.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+      const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+      const dominantType = sortedTypes[0]?.[0] || "Unknown";
+      const maxTypeCount = sortedTypes[0]?.[1] || 0;
+      const typeConsistent = reports.length > 0 && (maxTypeCount / reports.length >= 0.8);
+
+      const times = reports.map(r => new Date(r.timestamp).getTime());
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      const withinTimeWindow = reports.length > 0 && (maxTime - minTime <= 2 * 3600000);
+
+      let maxDist = 0;
+      let hasCoords = false;
+      for (let i = 0; i < reports.length; i++) {
+        for (let j = i + 1; j < reports.length; j++) {
+          const c1 = reports[i].coordinates;
+          const c2 = reports[j].coordinates;
+          if (c1 && c2) {
+            hasCoords = true;
+            const d = haversine(c1.lat, c1.lng, c2.lat, c2.lng);
+            if (d > maxDist) maxDist = d;
+          }
+        }
+      }
+      const withinLocThreshold = !hasCoords || (maxDist <= 3.0);
+
+      const confidences = reports.map(r => computeCorrelation(r).confidence);
+      const maxConfidence = confidences.length > 0 ? Math.max(...confidences) : 0;
+      const aiConfidenceExceeds = maxConfidence >= 75;
+
+      const mediaVerified = reports.some(r => ["resolved", "dispatched", "in-progress"].includes(r.status.toLowerCase()) || r.reportSource === "IoT Sensor");
+      const trustedSourceExists = reports.some(r => ["Patrol Unit", "IoT Sensor", "Emergency Call"].includes(r.reportSource));
+
+      const isValidated = multipleReports && typeConsistent && withinTimeWindow && withinLocThreshold && aiConfidenceExceeds && mediaVerified && trustedSourceExists;
+
+      if (isValidated) {
+        valid.push(location);
+      }
+    }
+    return valid;
+  }, [groupedByLocation, customValData]);
+
+  // Compute live agent data merging backend metrics with frontend local state overrides
+  const aiAgents = useMemo(() => {
+    const baseMap = new Map(backendAgents.map(a => [a.name, a]));
+
+    const unvalidatedList = groupedByLocation
+      .filter(([loc]) => !validatedLocations.includes(loc))
+      .map(([loc]) => loc);
+
+    const validatedPendingResources = validatedLocations.filter(loc => {
+      // Check if resources have been allocated or reports completed
+      const reports = incidents.filter(i => i.location === loc);
+      const hasCompleted = customValData[loc] || reports.length > 15;
+      return !hasCompleted;
+    });
+
+    const activeAudits = validatedLocations;
+
+    const dispatcherActive = unvalidatedList.length > 0;
+    const evaluatorActive = unvalidatedList.length > 0;
+    const validatorActive = unvalidatedList.length > 0;
+    const allocatorActive = validatedPendingResources.length > 0;
+    const auditorActive = activeAudits.length > 0;
+
+    return [
+      {
+        id: "AI-001",
+        name: "Data Dispatcher",
+        status: dispatcherActive ? "Processing" : "Idle",
+        confidence: 99,
+        currentTask: dispatcherActive
+          ? `Ingesting raw communication feeds for ${unvalidatedList[0]}, normalizing structured reports via Gemini.`
+          : "Idle - No Active Tasks",
+        activeLocation: dispatcherActive ? unvalidatedList[0] : "None",
+        queueSize: dispatcherActive ? unvalidatedList.length * 4 : 0,
+        cpu: baseMap.get("Data Dispatcher")?.cpu || 2,
+        memory: baseMap.get("Data Dispatcher")?.memory || 8,
+        processingTime: baseMap.get("Data Dispatcher")?.processingTime || "450ms",
+        lastUpdated: baseMap.get("Data Dispatcher")?.lastUpdated || new Date().toISOString(),
+        health: baseMap.get("Data Dispatcher")?.health || "Healthy",
+        icon: "hub"
+      },
+      {
+        id: "AI-002",
+        name: "Risk Evaluator",
+        status: evaluatorActive ? "Processing" : "Idle",
+        confidence: 97,
+        currentTask: evaluatorActive
+          ? `Evaluating compound severity and prioritizing emergency dispatcher feeds for ${unvalidatedList[0]}.`
+          : "Idle - No Active Tasks",
+        activeLocation: evaluatorActive ? unvalidatedList[0] : "None",
+        queueSize: evaluatorActive ? unvalidatedList.length : 0,
+        cpu: baseMap.get("Risk Evaluator")?.cpu || 3,
+        memory: baseMap.get("Risk Evaluator")?.memory || 10,
+        processingTime: baseMap.get("Risk Evaluator")?.processingTime || "820ms",
+        lastUpdated: baseMap.get("Risk Evaluator")?.lastUpdated || new Date().toISOString(),
+        health: baseMap.get("Risk Evaluator")?.health || "Healthy",
+        icon: "shield"
+      },
+      {
+        id: "AI-003",
+        name: "Field Validator",
+        status: validatorActive ? "Processing" : "Idle",
+        confidence: 95,
+        currentTask: validatorActive
+          ? `Verifying GPS proximity, camera streams, and sensor evidence correlation for ${unvalidatedList[0]}.`
+          : "Idle - No Active Tasks",
+        activeLocation: validatorActive ? unvalidatedList[0] : "None",
+        queueSize: validatorActive ? unvalidatedList.length : 0,
+        cpu: baseMap.get("Field Validator")?.cpu || 1,
+        memory: baseMap.get("Field Validator")?.memory || 9,
+        processingTime: baseMap.get("Field Validator")?.processingTime || "1.2s",
+        lastUpdated: baseMap.get("Field Validator")?.lastUpdated || new Date().toISOString(),
+        health: baseMap.get("Field Validator")?.health || "Healthy",
+        icon: "analytics"
+      },
+      {
+        id: "AI-004",
+        name: "Resource Allocator",
+        status: allocatorActive ? "Processing" : "Idle",
+        confidence: 92,
+        currentTask: allocatorActive
+          ? `Calculating vehicle routes, scheduling teams, and determining priority dispatch for ${validatedPendingResources[0]}.`
+          : "Idle - No Active Tasks",
+        activeLocation: allocatorActive ? validatedPendingResources[0] : "None",
+        queueSize: allocatorActive ? validatedPendingResources.length : 0,
+        cpu: baseMap.get("Resource Allocator")?.cpu || 1,
+        memory: baseMap.get("Resource Allocator")?.memory || 7,
+        processingTime: baseMap.get("Resource Allocator")?.processingTime || "1.5s",
+        lastUpdated: baseMap.get("Resource Allocator")?.lastUpdated || new Date().toISOString(),
+        health: baseMap.get("Resource Allocator")?.health || "Healthy",
+        icon: "route"
+      },
+      {
+        id: "AI-005",
+        name: "Compliance Auditor",
+        status: auditorActive ? "Processing" : "Idle",
+        confidence: 98,
+        currentTask: auditorActive
+          ? `Auditing SOP checklist checkpoints, timeline progressions, and policy rules for ${activeAudits[0]}.`
+          : "Idle - No Active Tasks",
+        activeLocation: auditorActive ? activeAudits[0] : "None",
+        queueSize: auditorActive ? activeAudits.length : 0,
+        cpu: baseMap.get("Compliance Auditor")?.cpu || 2,
+        memory: baseMap.get("Compliance Auditor")?.memory || 11,
+        processingTime: baseMap.get("Compliance Auditor")?.processingTime || "920ms",
+        lastUpdated: baseMap.get("Compliance Auditor")?.lastUpdated || new Date().toISOString(),
+        health: baseMap.get("Compliance Auditor")?.health || "Healthy",
+        icon: "verified_user"
+      }
+    ];
+  }, [backendAgents, groupedByLocation, validatedLocations, customValData]);
 
   const selectedAgent = roster.find((a) => a.id === selectedRosterId) || roster[0];
 
@@ -127,69 +385,104 @@ export default function AgentsPage() {
               transition={{ duration: 0.2 }}
               className="grid grid-cols-1 md:grid-cols-6 gap-[var(--spacing-gutter)]"
             >
-              {aiAgents.map((agent, idx) => (
-                <motion.div
-                  key={agent.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.06 }}
-                  className={`glass-card border border-outline-variant/20 p-5 flex flex-col gap-4 relative agent-card-hover cursor-pointer group md:col-span-2 ${
-                    idx === 3 ? "md:col-start-2" : ""
-                  }`}
-                >
-                  {/* Header */}
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${
-                      agent.status === "alert" ? "border-error bg-error/10" : "border-primary-fixed-dim/50 bg-primary-fixed-dim/10"
-                    }`}>
-                      <span className={`material-symbols-outlined text-[24px] ${
-                        agent.status === "alert" ? "text-error" : "text-primary-fixed-dim"
-                      }`}>{agent.icon}</span>
+              {aiAgents.map((agent, idx) => {
+                const sty = statusStyles[agent.status] || statusStyles.Idle;
+                const hl = healthStyles[agent.health] || healthStyles.Healthy;
+                return (
+                  <motion.div
+                    key={agent.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.06 }}
+                    className="glass-card border border-outline-variant/20 p-5 flex flex-col gap-4 relative agent-card-hover cursor-pointer group md:col-span-2"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${
+                        agent.status === "Error" ? "border-error bg-error/10" : "border-primary-fixed-dim/50 bg-primary-fixed-dim/10"
+                      }`}>
+                        <span className={`material-symbols-outlined text-[24px] ${
+                          agent.status === "Error" ? "text-error" : "text-primary-fixed-dim"
+                        }`}>{agent.icon}</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-[var(--font-inter)] text-[18px] font-semibold text-on-surface">{agent.name}</h3>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={`w-1.5 h-1.5 rounded-full ${sty.dot}`} />
+                          <span className={`font-[var(--font-geist)] text-[10px] uppercase font-bold ${sty.text}`}>
+                            {agent.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-[var(--font-inter)] text-[28px] font-bold text-on-surface">{agent.confidence}</span>
+                        <span className="font-[var(--font-inter)] text-[14px] text-outline">%</span>
+                        <div className="font-[var(--font-geist)] text-[10px] text-outline uppercase">Confidence</div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-[var(--font-inter)] text-[18px] font-semibold text-on-surface">{agent.name}</h3>
-                      <div className="flex items-center gap-1">
-                        <span className={`w-1.5 h-1.5 rounded-full ${statusStyles[agent.status]?.bg || "bg-outline"}`} />
-                        <span className={`font-[var(--font-geist)] text-[10px] uppercase ${statusStyles[agent.status]?.text || "text-outline"}`}>
-                          {agent.status}
+
+                    {/* Task */}
+                    <div>
+                      <div className="font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-secondary uppercase mb-1">Current Task</div>
+                      <p className="font-[var(--font-inter)] text-[13px] text-on-surface-variant leading-relaxed h-[42px] overflow-hidden line-clamp-2" title={agent.currentTask}>
+                        {agent.currentTask}
+                      </p>
+                    </div>
+
+                    {/* Meta Info Grid */}
+                    <div className="grid grid-cols-2 gap-2 border-t border-b border-outline-variant/15 py-3 font-[var(--font-geist)] text-[11px]">
+                      <div>
+                        <span className="text-outline uppercase block text-[9px] tracking-wider">Active Location</span>
+                        <span className="text-on-surface font-semibold truncate block mt-0.5">{agent.activeLocation}</span>
+                      </div>
+                      <div>
+                        <span className="text-outline uppercase block text-[9px] tracking-wider">Queue Size</span>
+                        <span className="text-on-surface font-semibold block mt-0.5">{agent.queueSize} items</span>
+                      </div>
+                      <div>
+                        <span className="text-outline uppercase block text-[9px] tracking-wider">Processing Time</span>
+                        <span className="text-on-surface font-semibold block mt-0.5">{agent.processingTime}</span>
+                      </div>
+                      <div>
+                        <span className="text-outline uppercase block text-[9px] tracking-wider">Last Updated</span>
+                        <span className="text-on-surface font-semibold block mt-0.5 truncate">
+                          {new Date(agent.lastUpdated).toLocaleTimeString()}
                         </span>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <span className="font-[var(--font-inter)] text-[28px] font-bold text-on-surface">{agent.confidence}</span>
-                      <span className="font-[var(--font-inter)] text-[14px] text-outline">%</span>
-                      <div className="font-[var(--font-geist)] text-[10px] text-outline uppercase">Confidence</div>
-                    </div>
-                  </div>
-                  {/* Task */}
-                  <div>
-                    <div className="font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-secondary uppercase mb-1">Current Task</div>
-                    <p className="font-[var(--font-inter)] text-[13px] text-on-surface-variant leading-relaxed">{agent.currentTask}</p>
-                  </div>
-                  {/* Metrics */}
-                  <div className="flex gap-8 mt-auto">
-                    <div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="font-[var(--font-geist)] text-[10px] text-on-surface uppercase">CPU</span>
-                        <span className="font-[var(--font-geist)] text-[12px] text-on-surface">{agent.cpu}%</span>
+
+                    {/* Metrics CPU/MEM and Health */}
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="flex gap-4">
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-[var(--font-geist)] text-[9px] text-on-surface uppercase">CPU</span>
+                            <span className="font-[var(--font-geist)] text-[11px] text-on-surface">{agent.cpu}%</span>
+                          </div>
+                          <div className="w-16 bg-surface-container-highest h-1 rounded-full mt-1 overflow-hidden">
+                            <div className="bg-primary-fixed-dim h-full" style={{ width: `${agent.cpu}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-[var(--font-geist)] text-[9px] text-on-surface uppercase">MEM</span>
+                            <span className="font-[var(--font-geist)] text-[11px] text-on-surface">{agent.memory}%</span>
+                          </div>
+                          <div className="w-16 bg-surface-container-highest h-1 rounded-full mt-1 overflow-hidden">
+                            <div className="bg-secondary h-full" style={{ width: `${agent.memory}%` }} />
+                          </div>
+                        </div>
                       </div>
-                      <div className="w-20 bg-surface-container-highest h-1 rounded-full mt-1 overflow-hidden">
-                        <div className="bg-primary-fixed-dim h-full" style={{ width: `${agent.cpu}%` }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="font-[var(--font-geist)] text-[10px] text-on-surface uppercase">MEM</span>
-                        <span className="font-[var(--font-geist)] text-[12px] text-on-surface">{agent.memory}%</span>
-                      </div>
-                      <div className="w-20 bg-surface-container-highest h-1 rounded-full mt-1 overflow-hidden">
-                        <div className="bg-secondary h-full" style={{ width: `${agent.memory}%` }} />
+
+                      <div className={`px-2 py-0.5 rounded-sm text-[9px] uppercase font-bold tracking-wider ${hl.bg} ${hl.text}`}>
+                        {agent.health}
                       </div>
                     </div>
-                  </div>
-                  <div className="tech-bracket" />
-                </motion.div>
-              ))}
+
+                    <div className="tech-bracket" />
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
 
@@ -315,20 +608,10 @@ export default function AgentsPage() {
                 </div>
                 <div className="flex-1 overflow-auto">
                   <table className="w-full text-left">
-                    <thead className="sticky top-0 bg-surface-container-lowest/90 backdrop-filter backdrop-blur-sm z-10">
-                      <tr className="font-[var(--font-geist)] text-[10px] tracking-[0.1em] font-semibold text-outline-variant border-b border-outline-variant/20">
-                        <th className="p-3">AGENT ID</th>
-                        <th className="p-3">DESIGNATION</th>
-                        <th className="p-3">SPECIALTY</th>
-                        <th className="p-3">STATUS</th>
-                        <th className="p-3">LOCATION</th>
-                        <th className="p-3 text-right">RATING</th>
-                      </tr>
-                    </thead>
                     <tbody className="font-[var(--font-geist)] text-[13px] font-medium">
                       {roster.map((agent) => {
                         const isSelected = selectedRosterId === agent.id;
-                        const sSt = statusStyles[agent.status] || statusStyles.standby;
+                        const sSt = rosterStatusStyles[agent.status] || rosterStatusStyles.standby;
                         return (
                           <tr
                             key={agent.id}
@@ -384,7 +667,7 @@ export default function AgentsPage() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <div className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase ${statusStyles[selectedAgent?.status || "standby"]?.bg} ${statusStyles[selectedAgent?.status || "standby"]?.text}`}>
+                        <div className={`text-[9px] px-1.5 py-0.5 rounded-sm font-bold uppercase ${rosterStatusStyles[selectedAgent?.status || "standby"]?.bg} ${rosterStatusStyles[selectedAgent?.status || "standby"]?.text}`}>
                           BIO-SYNC: STABLE
                         </div>
                       </div>
@@ -403,14 +686,13 @@ export default function AgentsPage() {
                     </div>
                   </div>
 
-                  {/* Combat Metrics (Radar Placeholder) */}
+                  {/* Radar radar chart */}
                   <div>
                     <h4 className="font-[var(--font-inter)] text-[14px] font-semibold text-on-surface border-b border-outline-variant/20 pb-2 mb-4">
                       Combat Metrics
                     </h4>
                     <div className="flex items-center justify-center h-44">
                       <svg viewBox="0 0 200 200" className="w-44 h-44">
-                        {/* Pentagon grid */}
                         {[1, 0.66, 0.33].map((s, i) => (
                           <polygon
                             key={i}
@@ -420,14 +702,12 @@ export default function AgentsPage() {
                             strokeWidth="1"
                           />
                         ))}
-                        {/* Data polygon */}
                         <polygon
                           points={pentagon(100, 100, 80, [0.9, 0.7, 0.75, 0.85, 0.6])}
                           fill="rgba(0,218,243,0.15)"
                           stroke="#00daf3"
                           strokeWidth="2"
                         />
-                        {/* Labels */}
                         <text x="100" y="10" textAnchor="middle" fill="#00daf3" fontSize="10" fontWeight="600">TACTICAL</text>
                         <text x="190" y="75" textAnchor="end" fill="#00daf3" fontSize="10" fontWeight="600">STEALTH</text>
                         <text x="170" y="160" textAnchor="end" fill="#00daf3" fontSize="10" fontWeight="600">ENDURANCE</text>
