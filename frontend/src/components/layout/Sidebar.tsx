@@ -8,10 +8,10 @@ import type { NavItem } from "@/types";
 const mainNavItems: NavItem[] = [
   { label: "Overview", icon: "grid_view", href: "/dashboard" },
   { label: "Incidents", icon: "emergency", href: "/dashboard/incidents" },
-  { label: "Resources", icon: "inventory_2", href: "/dashboard/resources" },
   { label: "Agents", icon: "groups", href: "/dashboard/agents" },
   { label: "Communications", icon: "cell_tower", href: "/dashboard/communications" },
   { label: "Reports", icon: "description", href: "/dashboard/reports" },
+  { label: "Compliance", icon: "gavel", href: "/dashboard/compliance" },
 ];
 
 const footerNavItems: NavItem[] = [
@@ -85,6 +85,17 @@ export default function Sidebar() {
                   >
                     <span className="material-symbols-outlined text-[15px]">fact_check</span>
                     <span className="uppercase tracking-widest">Validator</span>
+                  </Link>
+                  <Link
+                    href="/dashboard/resources"
+                    className={`flex items-center gap-2 py-1.5 px-2 rounded-sm text-[11px] transition-all ${
+                      pathname === "/dashboard/resources"
+                        ? "text-primary font-bold bg-primary/10 border-l-2 border-primary"
+                        : "text-outline hover:text-on-surface"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[15px]">inventory_2</span>
+                    <span className="uppercase tracking-widest">Resources</span>
                   </Link>
                 </div>
               )}

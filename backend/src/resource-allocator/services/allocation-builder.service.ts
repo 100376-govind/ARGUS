@@ -11,6 +11,7 @@ import {
   MAX_TEAM_SIZE,
 } from "../config/matching-rules.config";
 import { ResourceMatchingLogger } from "../utils/resource-matching-logger";
+import { IncidentResourceAnalysis } from "./incident-resource-analyzer.service";
 
 /**
  * AllocationBuilder takes ranked resources and constructs the final
@@ -27,10 +28,13 @@ export class AllocationBuilder {
 
   /**
    * Builds a complete ResourceAllocationResult from ranked resources.
+   * When an IncidentResourceAnalysis is provided, enriches the output
+   * with required/allocated/missing resource breakdowns.
    */
   public buildAllocation(
     rankedResources: RankedResource[],
-    incident: ValidatedIncidentInput
+    incident: ValidatedIncidentInput,
+    analysis?: IncidentResourceAnalysis
   ): ResourceAllocationResult {
     const allocationId = this.generateAllocationId();
 
@@ -93,6 +97,34 @@ export class AllocationBuilder {
 
     const allocationTimestamp = new Date().toISOString();
 
+    // Build incident-analysis-enriched fields
+    const allocatedResourceTypes = [
+      ...new Set(allAllocated.map((r) => r.resource.type)),
+    ];
+
+    const requiredResourcesList = analysis
+      ? analysis.requiredResources
+      : rule?.requiredResourceTypes ?? [];
+
+    const missingResources = requiredResourcesList.filter(
+      (reqType) => !allocatedResourceTypes.includes(reqType)
+    );
+
+    const dispatchPriority = analysis
+      ? analysis.priorityLevel
+      : incident.priority;
+
+    const resourceRequirements = analysis
+      ? {
+          requiredTypes: analysis.requiredResources,
+          requiredCounts: analysis.resourceCount,
+          totalRequired: analysis.totalResourceCount,
+          victimTier: analysis.victimTier,
+          priorityBoostApplied: analysis.priorityBoostApplied,
+          resourceLabels: analysis.resourceLabels,
+        }
+      : undefined;
+
     const result: ResourceAllocationResult = {
       allocationId,
       incidentId: incident.incidentId,
@@ -106,6 +138,12 @@ export class AllocationBuilder {
       estimatedCapacity,
       resourceScore,
       allocationTimestamp,
+      // Enriched fields from incident analysis
+      requiredResourceTypes: requiredResourcesList,
+      allocatedResourceTypes,
+      missingResources,
+      dispatchPriority,
+      resourceRequirements,
     };
 
     this.logger.logAllocationGenerated(

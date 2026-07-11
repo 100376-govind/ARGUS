@@ -158,6 +158,24 @@ export interface ResourceAllocationResult {
   };
   resourceScore: number;
   allocationTimestamp: string;
+
+  /** Resource types required by the incident (from IncidentResourceAnalyzer). */
+  requiredResourceTypes?: ResourceType[];
+  /** Resource types that were actually allocated. */
+  allocatedResourceTypes?: ResourceType[];
+  /** Resource types that were required but could not be allocated. */
+  missingResources?: ResourceType[];
+  /** Dispatch priority level derived from incident analysis. */
+  dispatchPriority?: string;
+  /** Detailed resource requirement breakdown from the analyzer. */
+  resourceRequirements?: {
+    requiredTypes: ResourceType[];
+    requiredCounts: Record<string, number>;
+    totalRequired: number;
+    victimTier: string;
+    priorityBoostApplied: boolean;
+    resourceLabels: Record<string, string>;
+  };
 }
 
 /**

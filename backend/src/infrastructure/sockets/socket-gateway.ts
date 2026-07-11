@@ -195,6 +195,42 @@ export class SocketGateway {
     this.io.of("/risk").emit("dashboard:updated", { incidentId, type: "validation" });
     logger.info({ incidentId }, "SocketGateway: Broadcasted validation completed and triggered dashboard update");
   }
+
+  public broadcastAuditStarted(incidentId: string): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("auditStarted", { incidentId, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("auditStarted", { incidentId, timestamp: new Date().toISOString() });
+  }
+
+  public broadcastTimelineUpdated(incidentId: string, timeline: any[]): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("timelineUpdated", { incidentId, timeline, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("timelineUpdated", { incidentId, timeline, timestamp: new Date().toISOString() });
+  }
+
+  public broadcastReportGenerated(incidentId: string, report: any): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("reportGenerated", { incidentId, report, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("reportGenerated", { incidentId, report, timestamp: new Date().toISOString() });
+  }
+
+  public broadcastComplianceChecked(incidentId: string, status: string): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("complianceChecked", { incidentId, status, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("complianceChecked", { incidentId, status, timestamp: new Date().toISOString() });
+  }
+
+  public broadcastPdfGenerated(incidentId: string): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("pdfGenerated", { incidentId, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("pdfGenerated", { incidentId, timestamp: new Date().toISOString() });
+  }
+
+  public broadcastDashboardUpdated(incidentId: string): void {
+    if (!this.io) return;
+    this.io.of("/risk").emit("dashboardUpdated", { incidentId, timestamp: new Date().toISOString() });
+    this.io.of("/risk").to(`incident:${incidentId}`).emit("dashboardUpdated", { incidentId, timestamp: new Date().toISOString() });
+  }
 }
 
 export const socketGateway = SocketGateway.getInstance();

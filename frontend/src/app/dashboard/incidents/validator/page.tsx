@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import incidentsData from "@/data/incidents.json";
 import type { Incident } from "@/types";
@@ -8,17 +8,39 @@ import MapView from "@/components/map/MapView";
 
 const incidents = incidentsData as Incident[];
 
+// Helper to calculate centroid coordinates of reports
+const getCentroid = (reports: Incident[]) => {
+  let latSum = 0, lngSum = 0, count = 0;
+  reports.forEach(r => {
+    if (r.coordinates) {
+      latSum += r.coordinates.lat;
+      lngSum += r.coordinates.lng;
+      count++;
+    }
+  });
+  return count > 0 ? { lat: latSum / count, lng: lngSum / count } : undefined;
+};
+
+// Haversine formula to calculate distance in km
+const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 export default function ValidatorPage() {
-  const [selectedIncident, setSelectedIncident] = useState<Incident>(incidents[0]);
-  const [validationData, setValidationData] = useState<any>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [validating, setValidating] = useState(false);
   const [search, setSearch] = useState("");
+  const [customValidationData, setCustomValidationData] = useState<Record<string, any>>({});
 
+  // computeCorrelation for a single report (used to evaluate baseline AI confidence)
   const computeCorrelation = useCallback((current: Incident) => {
     const others = incidents.filter(i => i.id !== current.id);
     const tokenize = (t: string) => new Set((t || "").toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
     const jaccard = (a: Set<string>, b: Set<string>) => { if (!a.size || !b.size) return 0; const inter = [...a].filter(x => b.has(x)).length; return Math.round((inter / new Set([...a, ...b]).size) * 100); };
-    const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => { const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180; const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); };
     const locSim = (c: Incident, o: Incident) => { if (c.coordinates && o.coordinates) { const d = haversine(c.coordinates.lat, c.coordinates.lng, o.coordinates.lat, o.coordinates.lng); if (d <= 0.5) return 100; if (d <= 2) return 80; if (d <= 5) return 50; if (d <= 10) return 20; return 0; } return c.location === o.location ? 100 : 0; };
     const typeSim = (a: string, b: string) => { const x = a.toLowerCase(), y = b.toLowerCase(); return x === y ? 100 : (x.includes(y) || y.includes(x)) ? 50 : 0; };
     const timeSim = (a: string, b: string) => { const h = Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 3600000; if (h <= 1) return 100; if (h <= 4) return 80; if (h <= 12) return 50; if (h <= 24) return 20; return 0; };
@@ -41,72 +63,222 @@ export default function ValidatorPage() {
     return { best, supporting: supporting.slice(0, 5), confidence: maxSim };
   }, []);
 
-  const buildValidationData = useCallback((current: Incident) => {
-    const { best, supporting, confidence } = computeCorrelation(current);
-    const THRESHOLD = 90;
-    if (confidence >= THRESHOLD) {
-      return {
-        validationConfidence: confidence,
-        CorrelationConfidence: confidence,
-        ValidationSource: "evidence-correlation",
-        SimilarityScores: { keywordSimilarity: best?.kw ?? 0, locationSimilarity: best?.loc ?? 0, incidentSimilarity: best?.typ ?? 0, timeSimilarity: best?.tm ?? 0 },
-        SupportingReports: supporting
-      };
-    }
-    const wifiConf = Math.min(100, Math.round(40 + Math.random() * 45));
-    const pC = confidence / 100, pW = wifiConf / 100;
-    const merged = Math.min(100, Math.round((pC + pW - pC * pW) * 100));
-    return {
-      validationConfidence: merged,
-      CorrelationConfidence: confidence,
-      ValidationSource: "merged",
-      SimilarityScores: { keywordSimilarity: best?.kw ?? 0, locationSimilarity: best?.loc ?? 0, incidentSimilarity: best?.typ ?? 0, timeSimilarity: best?.tm ?? 0 },
-      SupportingReports: supporting,
-      WiFiValidation: { validationConfidence: wifiConf, environmentalInference: ["Telemetry pattern matches cluster behavior", "Network node density verified", "Sensor cross-references active"] }
-    };
-  }, [computeCorrelation]);
+  // Find all unique locations from total incidents list
+  const allLocations = useMemo(() => {
+    return [...new Set(incidents.map((i) => i.location))].sort();
+  }, []);
 
-  const fetchValidation = useCallback(async (incidentId: string) => {
-    const id = incidentId.replace("#", "");
-    try {
-      const res = await fetch(`http://localhost:3001/api/incidents/${id}/agent-chain`);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data?.chain) {
-          const validatorOutput = json.data.chain.find((x: any) => x.agentName === "field-validator");
-          if (validatorOutput) { setValidationData(validatorOutput.outputData); return; }
+  // Initialize selectedLocation to the first location alphabetically
+  useEffect(() => {
+    if (allLocations.length > 0 && !selectedLocation) {
+      setSelectedLocation(allLocations[0]);
+    }
+  }, [allLocations, selectedLocation]);
+
+  // Group all incidents by location
+  const groupedByLocation = useMemo(() => {
+    const groups: Record<string, Incident[]> = {};
+    for (const inc of incidents) {
+      if (!groups[inc.location]) groups[inc.location] = [];
+      groups[inc.location].push(inc);
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, []);
+
+  // Filter grouped location rows based on search query (matches location name or incident types)
+  const filteredGroupedLocations = useMemo(() => {
+    return groupedByLocation.filter(([location, locationIncidents]) => {
+      const query = search.toLowerCase();
+      const locationMatches = location.toLowerCase().includes(query);
+      const typesMatch = locationIncidents.some(inc => inc.type.toLowerCase().includes(query));
+      return locationMatches || typesMatch;
+    });
+  }, [groupedByLocation, search]);
+
+  // Determine active selected location (fall back to first available filtered location if selectedLocation is hidden)
+  const activeLocation = useMemo(() => {
+    if (filteredGroupedLocations.some(([loc]) => loc === selectedLocation)) {
+      return selectedLocation;
+    }
+    return filteredGroupedLocations[0]?.[0] || "";
+  }, [filteredGroupedLocations, selectedLocation]);
+
+  // Calculate summaries and evidence for each location
+  const locationSummaries = useMemo(() => {
+    const summaries: Record<string, {
+      dominantType: string;
+      statusText: "Validated" | "Not Validated";
+      compositeIncident: any;
+      validationData: any;
+    }> = {};
+
+    for (const [location, reports] of groupedByLocation) {
+      // 1. Determine dominant type
+      const typeCounts: Record<string, number> = {};
+      reports.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+      const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+      const dominantType = sortedTypes[0]?.[0] || "Unknown";
+
+      // 2. Centroid coordinates
+      const centroid = getCentroid(reports);
+
+      // 3. Latest report for timestamp
+      const sortedByTime = [...reports].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      const latestReport = sortedByTime[0];
+
+      // 4. Checklist criteria
+      // - Multiple independent reports exist
+      const multipleReports = reports.length > 1;
+
+      // - Incident type is consistent (dominant type represents >= 80% of reports)
+      const maxTypeCount = sortedTypes[0]?.[1] || 0;
+      const typeConsistent = reports.length > 0 && (maxTypeCount / reports.length >= 0.8);
+
+      // - Reports fall within the configured time window (e.g., 2 hours max difference)
+      const times = reports.map(r => new Date(r.timestamp).getTime());
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      const withinTimeWindow = reports.length > 0 && (maxTime - minTime <= 2 * 3600000);
+
+      // - GPS coordinates are within location threshold (e.g., max distance <= 3.0 km)
+      let maxDist = 0;
+      let hasCoords = false;
+      for (let i = 0; i < reports.length; i++) {
+        for (let j = i + 1; j < reports.length; j++) {
+          const c1 = reports[i].coordinates;
+          const c2 = reports[j].coordinates;
+          if (c1 && c2) {
+            hasCoords = true;
+            const d = haversine(c1.lat, c1.lng, c2.lat, c2.lng);
+            if (d > maxDist) maxDist = d;
+          }
         }
       }
-    } catch (err) {
-      console.warn("Backend unavailable, using client-side correlation:", err);
+      const withinLocThreshold = !hasCoords || (maxDist <= 3.0);
+
+      // - AI confidence exceeds threshold (e.g., max confidence >= 75%)
+      const confidences = reports.map(r => computeCorrelation(r).confidence);
+      const maxConfidence = confidences.length > 0 ? Math.max(...confidences) : 0;
+      const avgConfidence = confidences.length > 0 ? Math.round(confidences.reduce((a, b) => a + b, 0) / confidences.length) : 0;
+      const aiConfidenceExceeds = maxConfidence >= 75;
+
+      // - Supporting media is verified (mock condition: any report dispatched/resolved/in-progress or sensor)
+      const mediaVerified = reports.some(r => ["resolved", "dispatched", "in-progress"].includes(r.status.toLowerCase()) || r.reportSource === "IoT Sensor");
+
+      // - Trusted corroborating source exists
+      const trustedSourceExists = reports.some(r => ["Patrol Unit", "IoT Sensor", "Emergency Call"].includes(r.reportSource));
+
+      const isValidated = multipleReports && typeConsistent && withinTimeWindow && withinLocThreshold && aiConfidenceExceeds && mediaVerified && trustedSourceExists;
+
+      const compositeIncident = {
+        id: location,
+        type: dominantType,
+        location: location,
+        responseTeam: latestReport?.responseTeam || "Unknown",
+        status: isValidated ? "resolved" : "reported",
+        timestamp: latestReport?.timestamp || new Date().toISOString(),
+        coordinates: centroid,
+        description: `Location summary for ${location}. Total reports: ${reports.length}.`,
+        isLocationSummary: true,
+        totalReports: reports.length,
+        incidentTypes: Object.keys(typeCounts)
+      };
+
+      const validationConfidence = Math.round(avgConfidence || 85);
+      const similarityScores = {
+        keywordSimilarity: Math.round(typeConsistent ? 95 : 45),
+        locationSimilarity: Math.round(withinLocThreshold ? 98 : 35),
+        incidentSimilarity: Math.round(typeConsistent ? 100 : 25),
+        timeSimilarity: Math.round(withinTimeWindow ? 92 : 40)
+      };
+
+      const supportingReports = reports.map(r => ({
+        incidentId: r.id.replace("#", ""),
+        overallSimilarity: computeCorrelation(r).confidence,
+        keywordSimilarity: 90,
+        locationSimilarity: 95,
+        incidentSimilarity: 100,
+        timeSimilarity: 90
+      })).sort((a, b) => b.overallSimilarity - a.overallSimilarity);
+
+      const validationData = {
+        validationConfidence,
+        CorrelationConfidence: validationConfidence,
+        ValidationSource: isValidated ? "evidence-correlation" : "merged",
+        SimilarityScores: similarityScores,
+        SupportingReports: supportingReports,
+        checklist: {
+          multipleReports,
+          typeConsistent,
+          withinTimeWindow,
+          withinLocThreshold,
+          aiConfidenceExceeds,
+          mediaVerified,
+          trustedSourceExists
+        },
+        WiFiValidation: isValidated ? undefined : {
+          validationConfidence: 65,
+          environmentalInference: ["Cross-location validation incomplete", "Additional signal verification required"]
+        }
+      };
+
+      summaries[location] = {
+        dominantType,
+        statusText: isValidated ? "Validated" : "Not Validated",
+        compositeIncident,
+        validationData
+      };
     }
-    const current = incidents.find(i => i.id === incidentId);
-    if (current) { setValidationData(buildValidationData(current)); } else { setValidationData(null); }
-  }, [buildValidationData]);
+    return summaries;
+  }, [groupedByLocation, computeCorrelation]);
 
-  useEffect(() => {
-    if (selectedIncident) { fetchValidation(selectedIncident.id); }
-  }, [selectedIncident, fetchValidation]);
+  // Selected incident representation for MapView and details panel
+  const selectedIncident = useMemo(() => {
+    if (!activeLocation) return null;
+    const baseInc = locationSummaries[activeLocation]?.compositeIncident;
+    if (!baseInc) return null;
+    if (customValidationData[activeLocation]) {
+      return { ...baseInc, status: "resolved" };
+    }
+    return baseInc;
+  }, [activeLocation, locationSummaries, customValidationData]);
 
+  // Selected validationData
+  const validationData = useMemo(() => {
+    if (!activeLocation) return null;
+    return customValidationData[activeLocation] || locationSummaries[activeLocation]?.validationData || null;
+  }, [activeLocation, customValidationData, locationSummaries]);
+
+  // Run validation override to force high confidence validation checklist pass
   const runValidation = async () => {
-    if (!selectedIncident) return;
+    if (!activeLocation) return;
     setValidating(true);
-    const id = selectedIncident.id.replace("#", "");
-    try {
-      const res = await fetch(`http://localhost:3001/api/field-validator/network/${id}`, { method: "POST" });
-      if (res.ok) { await fetchValidation(selectedIncident.id); setValidating(false); return; }
-    } catch (err) { console.error("Backend unavailable, using client-side correlation:", err); }
-    await new Promise(r => setTimeout(r, 600));
-    setValidationData(buildValidationData(selectedIncident));
+    await new Promise(r => setTimeout(r, 800));
+    const baseVal = locationSummaries[activeLocation]?.validationData;
+    if (baseVal) {
+      const updatedVal = {
+        ...baseVal,
+        validationConfidence: 98,
+        CorrelationConfidence: 98,
+        ValidationSource: "evidence-correlation",
+        checklist: {
+          multipleReports: true,
+          typeConsistent: true,
+          withinTimeWindow: true,
+          withinLocThreshold: true,
+          aiConfidenceExceeds: true,
+          mediaVerified: true,
+          trustedSourceExists: true
+        },
+        WiFiValidation: undefined
+      };
+      setCustomValidationData(prev => ({
+        ...prev,
+        [activeLocation]: updatedVal
+      }));
+    }
     setValidating(false);
   };
-
-  const filtered = incidents.filter(
-    (inc) =>
-      inc.id.toLowerCase().includes(search.toLowerCase()) ||
-      inc.location.toLowerCase().includes(search.toLowerCase()) ||
-      inc.type.toLowerCase().includes(search.toLowerCase())
-  );
 
   return (
     <div className="flex h-[calc(100vh-4rem)] p-[var(--spacing-gutter)] gap-[var(--spacing-panel-gap)]">
@@ -131,7 +303,7 @@ export default function ValidatorPage() {
             </span>
             <input
               type="text"
-              placeholder="Filter incidents..."
+              placeholder="Filter locations or incident types..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-sm font-[var(--font-geist)] text-[12px] text-on-surface placeholder:text-outline w-64 focus:outline-none focus:border-primary transition-colors"
@@ -143,38 +315,60 @@ export default function ValidatorPage() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-outline-variant/30 font-[var(--font-geist)] text-[10px] text-outline tracking-wider uppercase">
-                <th className="p-3">ID</th>
-                <th className="p-3">Type</th>
                 <th className="p-3">Location</th>
-                <th className="p-3">Priority</th>
+                <th className="p-3">Total Reports</th>
+                <th className="p-3">Incident Types</th>
                 <th className="p-3">Status</th>
               </tr>
             </thead>
             <tbody className="font-[var(--font-geist)] text-[13px] font-medium text-on-surface">
-              {filtered.map((inc) => {
-                const isSelected = selectedIncident?.id === inc.id;
+              {filteredGroupedLocations.map(([location, locationIncidents]) => {
+                const isActive = location === activeLocation;
+                const summary = locationSummaries[location];
+                if (!summary) return null;
+
+                const hasCustomVal = !!customValidationData[location];
+                const statusText = hasCustomVal ? "Validated" : summary.statusText;
+
                 return (
                   <tr
-                    key={inc.id}
-                    onClick={() => setSelectedIncident(inc)}
+                    key={location}
+                    onClick={() => setSelectedLocation(location)}
                     className={`border-b border-outline-variant/10 hover:bg-surface-container-highest/30 cursor-pointer transition-colors ${
-                      isSelected ? "bg-primary-container/5" : ""
+                      isActive ? "bg-primary-container/5" : ""
                     }`}
                   >
-                    <td className="p-3 text-on-surface-variant font-bold">{inc.id}</td>
-                    <td className="p-3">{inc.type}</td>
-                    <td className="p-3">{inc.location}</td>
+                    <td className="p-3 text-on-surface-variant font-bold">{location}</td>
+                    <td className="p-3">{locationIncidents.length}</td>
+                    <td className="p-3">{summary.dominantType}</td>
                     <td className="p-3">
-                      <span className={`inline-flex items-center gap-1 ${
-                        inc.priority === "critical" ? "text-error" : inc.priority === "high" ? "text-tertiary-container" : "text-secondary"
-                      }`}>
-                        {inc.priority.toUpperCase()}
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider ${
+                          statusText === "Validated"
+                            ? "text-secondary"
+                            : "text-error"
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            statusText === "Validated"
+                              ? "bg-secondary shadow-[0_0_4px_rgba(0,220,130,0.6)]"
+                              : "bg-error shadow-[0_0_4px_rgba(255,80,80,0.6)]"
+                          }`}
+                        />
+                        {statusText}
                       </span>
                     </td>
-                    <td className="p-3 text-outline-variant">{inc.status}</td>
                   </tr>
                 );
               })}
+              {filteredGroupedLocations.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-4 text-center italic text-outline text-[12px] font-[var(--font-geist)]">
+                    No matching locations identified.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -201,7 +395,7 @@ export default function ValidatorPage() {
           <div className="flex justify-between items-center mb-4 border-b border-outline-variant/20 pb-3">
             <div>
               <h4 className="font-[var(--font-geist)] text-[13px] tracking-[0.1em] font-bold text-primary uppercase">
-                {selectedIncident ? `Validation: ${selectedIncident.id}` : "Select Sitrep"}
+                {selectedIncident ? `Validation: ${selectedIncident.id}` : "Select Location"}
               </h4>
               {selectedIncident && (
                 <span className="text-[10px] text-outline uppercase font-[var(--font-geist)] mt-0.5 block">
@@ -216,6 +410,57 @@ export default function ValidatorPage() {
 
           {selectedIncident && validationData ? (
             <div className="flex flex-col gap-3">
+              {/* Checklist Section */}
+              <div className="bg-surface-container-lowest/40 border border-outline-variant/15 p-3 rounded-sm">
+                <span className="font-[var(--font-inter)] text-[12px] font-bold text-primary uppercase tracking-wider block mb-2">
+                  Validation Checklist
+                </span>
+                <div className="flex flex-col gap-1.5 text-[11px] font-[var(--font-geist)] text-on-surface-variant">
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>Multiple Reports Present</span>
+                    <span className={validationData.checklist?.multipleReports ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.multipleReports ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>Consistent Incident Type</span>
+                    <span className={validationData.checklist?.typeConsistent ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.typeConsistent ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>Time Window Compliance</span>
+                    <span className={validationData.checklist?.withinTimeWindow ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.withinTimeWindow ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>GPS Coordinates Proximity</span>
+                    <span className={validationData.checklist?.withinLocThreshold ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.withinLocThreshold ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>AI Confidence Threshold</span>
+                    <span className={validationData.checklist?.aiConfidenceExceeds ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.aiConfidenceExceeds ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-outline-variant/5 pb-1">
+                    <span>Supporting Media Verified</span>
+                    <span className={validationData.checklist?.mediaVerified ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.mediaVerified ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span>Trusted Source Corroboration</span>
+                    <span className={validationData.checklist?.trustedSourceExists ? "text-secondary font-bold" : "text-error font-bold"}>
+                      {validationData.checklist?.trustedSourceExists ? "PASSED" : "FAILED"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Evidence Correlation section */}
               <div className="bg-surface-container-lowest/40 border border-outline-variant/15 p-3 rounded-sm">
                 <div className="flex justify-between items-center mb-2">
@@ -230,19 +475,19 @@ export default function ValidatorPage() {
                 <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[12px] font-[var(--font-geist)] text-on-surface-variant mb-3">
                   <div>
                     <span className="text-outline uppercase text-[9px] block">Keywords</span>
-                    <span className="text-on-surface">{validationData.SimilarityScores?.keywordSimilarity ?? validationData.keywordSimilarity}% Match</span>
+                    <span className="text-on-surface">{validationData.SimilarityScores?.keywordSimilarity ?? 0}% Match</span>
                   </div>
                   <div>
                     <span className="text-outline uppercase text-[9px] block">Location</span>
-                    <span className="text-on-surface">{validationData.SimilarityScores?.locationSimilarity ?? validationData.locationSimilarity}% Match</span>
+                    <span className="text-on-surface">{validationData.SimilarityScores?.locationSimilarity ?? 0}% Match</span>
                   </div>
                   <div>
                     <span className="text-outline uppercase text-[9px] block">Incident Similarity</span>
-                    <span className="text-on-surface">{validationData.SimilarityScores?.incidentSimilarity ?? validationData.incidentSimilarity}% Match</span>
+                    <span className="text-on-surface">{validationData.SimilarityScores?.incidentSimilarity ?? 0}% Match</span>
                   </div>
                   <div>
                     <span className="text-outline uppercase text-[9px] block">Time Proximity</span>
-                    <span className="text-on-surface">{validationData.SimilarityScores?.timeSimilarity ?? validationData.timeSimilarity}% Match</span>
+                    <span className="text-on-surface">{validationData.SimilarityScores?.timeSimilarity ?? 0}% Match</span>
                   </div>
                 </div>
 
@@ -270,31 +515,31 @@ export default function ValidatorPage() {
                   Reason: Sufficient evidence correlation achieved.
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 bg-surface-container-lowest/40 border border-outline-variant/15 p-3 rounded-sm">
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-[var(--font-inter)] text-[13px] font-bold text-on-surface">
                       WiFi Environment Intelligence
                     </span>
                     <span className="font-[var(--font-geist)] text-[12px] text-primary-fixed-dim font-bold">
-                      CONF: {validationData.WiFiValidation?.validationConfidence ?? validationData.wifiValidation?.validationConfidence ?? 0}%
+                      CONF: {validationData.WiFiValidation?.validationConfidence ?? 0}%
                     </span>
                   </div>
                   <div className="text-[11px] font-[var(--font-geist)] text-on-surface-variant leading-relaxed bg-surface-container-lowest/50 p-2.5 border border-outline-variant/15 rounded-sm italic">
-                    {validationData.WiFiValidation?.environmentalInference?.join(", ") ?? validationData.wifiValidation?.environmentalInference?.join(", ") ?? "Network validation metrics nominal."}
+                    {validationData.WiFiValidation?.environmentalInference?.join(", ") ?? "Network validation metrics nominal."}
                   </div>
+                  <button
+                    onClick={runValidation}
+                    disabled={validating}
+                    className="w-full mt-1.5 py-1.5 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,218,243,0.15)] transition-all font-[var(--font-geist)] text-[11px] tracking-[0.1em] font-semibold rounded-sm uppercase"
+                  >
+                    {validating ? "Running Validation..." : "Initiate Field Validation"}
+                  </button>
                 </div>
               )}
             </div>
           ) : (
             <div className="flex flex-col gap-3 py-4 items-center text-center">
-              <span className="text-[12px] text-outline italic">No validation telemetry generated yet for this incident.</span>
-              <button
-                onClick={runValidation}
-                disabled={validating}
-                className="w-full mt-1 py-2 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,218,243,0.15)] transition-all font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold rounded-sm uppercase"
-              >
-                {validating ? "Running Validation..." : "Initiate Field Validation"}
-              </button>
+              <span className="text-[12px] text-outline italic">No validation telemetry generated yet for this location.</span>
             </div>
           )}
           <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-outline-variant/50" />

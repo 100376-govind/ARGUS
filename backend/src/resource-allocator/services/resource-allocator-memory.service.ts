@@ -4,6 +4,7 @@ import {
   ResourceAllocationMemoryPayload,
 } from "../interfaces/resource-matching.interface";
 import { ResourceMatchingLogger } from "../utils/resource-matching-logger";
+import { IncidentResourceAnalysis } from "./incident-resource-analyzer.service";
 
 /**
  * ResourceAllocatorSharedMemoryIntegration appends resource allocation
@@ -20,10 +21,12 @@ export class ResourceAllocatorSharedMemoryIntegration {
   /**
    * Appends resource allocation data to the shared incident memory.
    * Does NOT overwrite any previous data — appends a new AgentExecutionRecord.
+   * When analysis is provided, enriches the memory payload with resource requirements.
    */
   public async appendAllocationResult(
     incidentId: string,
-    allocation: ResourceAllocationResult
+    allocation: ResourceAllocationResult,
+    analysis?: IncidentResourceAnalysis
   ): Promise<void> {
     const existing = await this.sharedMemory.read(incidentId);
     if (!existing) {
@@ -42,51 +45,69 @@ export class ResourceAllocatorSharedMemoryIntegration {
       allocationTimestamp: allocation.allocationTimestamp,
     };
 
+    // Build enriched output data with analysis context
+    const outputData: Record<string, any> = {
+      type: "resource-allocation",
+      allocationId: allocation.allocationId,
+      incidentType: allocation.incidentType,
+      priority: allocation.priority,
+      allocatedResources: memoryPayload.allocatedResources.map((r) => ({
+        resourceId: r.resource.id,
+        resourceName: r.resource.name,
+        resourceType: r.resource.type,
+        capabilityScore: r.capabilityScore,
+        compositeRank: r.compositeRank,
+        etaMinutes: r.eta.estimatedTimeMinutes,
+        distanceKm: r.eta.distanceKm,
+      })),
+      resourceScore: memoryPayload.resourceScore,
+      selectedTeams: {
+        primary: {
+          teamId: memoryPayload.selectedTeams.primary.teamId,
+          memberCount: memoryPayload.selectedTeams.primary.members.length,
+          avgCapabilityScore: memoryPayload.selectedTeams.primary.totalCapabilityScore,
+        },
+        backup: {
+          teamId: memoryPayload.selectedTeams.backup.teamId,
+          memberCount: memoryPayload.selectedTeams.backup.members.length,
+          avgCapabilityScore: memoryPayload.selectedTeams.backup.totalCapabilityScore,
+        },
+      },
+      hospitals: allocation.hospitals.map((h) => ({
+        resourceId: h.resourceId,
+        name: h.name,
+        availableBeds: h.availableBeds,
+        icuAvailable: h.icuAvailable,
+      })),
+      shelters: allocation.shelters.map((s) => ({
+        resourceId: s.resourceId,
+        name: s.name,
+        remainingCapacity: s.remainingCapacity,
+      })),
+      estimatedCapacity: allocation.estimatedCapacity,
+      allocationTimestamp: memoryPayload.allocationTimestamp,
+    };
+
+    // Append incident-analysis-enriched fields (STEP 6: without overwriting previous data)
+    if (analysis) {
+      outputData.requiredResources = analysis.requiredResources;
+      outputData.allocatedResources_types = allocation.allocatedResourceTypes;
+      outputData.missingResources = allocation.missingResources;
+      outputData.resourceRequirements = {
+        requiredTypes: analysis.requiredResources,
+        requiredCounts: analysis.resourceCount,
+        totalRequired: analysis.totalResourceCount,
+        victimTier: analysis.victimTier,
+        priorityBoostApplied: analysis.priorityBoostApplied,
+        resourceLabels: analysis.resourceLabels,
+      };
+    }
+
     await this.sharedMemory.write(incidentId, "resource-matching-engine", {
       status: "success",
       confidence: Math.min(100, Math.round(allocation.resourceScore)),
-      reasoning: this.buildReasoning(allocation),
-      outputData: {
-        type: "resource-allocation",
-        allocationId: allocation.allocationId,
-        incidentType: allocation.incidentType,
-        priority: allocation.priority,
-        allocatedResources: memoryPayload.allocatedResources.map((r) => ({
-          resourceId: r.resource.id,
-          resourceName: r.resource.name,
-          resourceType: r.resource.type,
-          capabilityScore: r.capabilityScore,
-          compositeRank: r.compositeRank,
-          etaMinutes: r.eta.estimatedTimeMinutes,
-          distanceKm: r.eta.distanceKm,
-        })),
-        resourceScore: memoryPayload.resourceScore,
-        selectedTeams: {
-          primary: {
-            teamId: memoryPayload.selectedTeams.primary.teamId,
-            memberCount: memoryPayload.selectedTeams.primary.members.length,
-            avgCapabilityScore: memoryPayload.selectedTeams.primary.totalCapabilityScore,
-          },
-          backup: {
-            teamId: memoryPayload.selectedTeams.backup.teamId,
-            memberCount: memoryPayload.selectedTeams.backup.members.length,
-            avgCapabilityScore: memoryPayload.selectedTeams.backup.totalCapabilityScore,
-          },
-        },
-        hospitals: allocation.hospitals.map((h) => ({
-          resourceId: h.resourceId,
-          name: h.name,
-          availableBeds: h.availableBeds,
-          icuAvailable: h.icuAvailable,
-        })),
-        shelters: allocation.shelters.map((s) => ({
-          resourceId: s.resourceId,
-          name: s.name,
-          remainingCapacity: s.remainingCapacity,
-        })),
-        estimatedCapacity: allocation.estimatedCapacity,
-        allocationTimestamp: memoryPayload.allocationTimestamp,
-      },
+      reasoning: this.buildReasoning(allocation, analysis),
+      outputData,
     });
 
     this.logger.logSharedMemoryUpdated(incidentId, allocation.allocationId);
@@ -95,12 +116,30 @@ export class ResourceAllocatorSharedMemoryIntegration {
   /**
    * Builds a human-readable reasoning string describing the allocation.
    */
-  private buildReasoning(allocation: ResourceAllocationResult): string {
+  private buildReasoning(
+    allocation: ResourceAllocationResult,
+    analysis?: IncidentResourceAnalysis
+  ): string {
     const parts: string[] = [
       `Resource allocation completed for ${allocation.incidentType} incident (priority: ${allocation.priority}).`,
-      `Primary team: ${allocation.primaryTeam.members.length} resources assigned (avg capability: ${allocation.primaryTeam.totalCapabilityScore}).`,
-      `Backup team: ${allocation.backupTeam.members.length} resources on standby.`,
     ];
+
+    if (analysis) {
+      parts.push(
+        `Incident analysis: required ${analysis.requiredResources.join(", ")} (victim tier: ${analysis.victimTier}, boost: ${analysis.priorityBoostApplied}).`
+      );
+    }
+
+    parts.push(
+      `Primary team: ${allocation.primaryTeam.members.length} resources assigned (avg capability: ${allocation.primaryTeam.totalCapabilityScore}).`,
+      `Backup team: ${allocation.backupTeam.members.length} resources on standby.`
+    );
+
+    if (allocation.missingResources && allocation.missingResources.length > 0) {
+      parts.push(
+        `Missing resources: ${allocation.missingResources.join(", ")}.`
+      );
+    }
 
     if (allocation.hospitals.length > 0) {
       const totalBeds = allocation.hospitals.reduce((s, h) => s + h.availableBeds, 0);

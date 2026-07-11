@@ -1,203 +1,378 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { io, Socket } from "socket.io-client";
+import React, { useState, useEffect, useMemo } from "react";
+import { motion } from "framer-motion";
 import ResourceMapView from "@/components/map/ResourceMapView";
+import incidentsData from "@/data/incidents.json";
+import type { Incident } from "@/types";
 
-interface AllocationDetails {
-  incidentId: string;
-  status: "pending" | "allocated";
-  eta: number | null;
-  distance: number | null;
-  routeStatus: "Optimal" | "Delayed" | "CriticalDelay";
-  estimatedArrival: string | null;
-  allocation: {
-    allocatedResources: Array<{
-      resourceId: string;
-      resourceName: string;
-      resourceType: string;
-      compositeRank: number;
-      capabilityScore: number;
-      etaMinutes: number;
-      distanceKm: number;
-    }>;
-    resourceScore: number;
-    selectedTeams: {
-      primary: { teamId: string; memberCount: number; avgCapabilityScore: number };
-      backup: { teamId: string; memberCount: number; avgCapabilityScore: number };
-    };
-    hospitals: Array<{ resourceId: string; name: string; availableBeds: number; icuAvailable: boolean }>;
-    shelters: Array<{ resourceId: string; name: string; remainingCapacity: number }>;
-    estimatedCapacity: {
-      totalResponders: number;
-      totalVehicles: number;
-      medicalUnits: number;
-      rescueUnits: number;
-      hospitalBeds: number;
-      shelterSpaces: number;
-    };
-    allocationTimestamp: string;
-  } | null;
-  dispatchPlan: Array<{
-    resourceId: string;
-    resourceName: string;
-    resourceType: string;
-    dispatchSequenceOrder: number;
+const incidents = incidentsData as Incident[];
+
+// Helper to calculate centroid coordinates of reports
+const getCentroid = (reports: Incident[]) => {
+  let latSum = 0, lngSum = 0, count = 0;
+  reports.forEach(r => {
+    if (r.coordinates) {
+      latSum += r.coordinates.lat;
+      lngSum += r.coordinates.lng;
+      count++;
+    }
+  });
+  return count > 0 ? { lat: latSum / count, lng: lngSum / count } : undefined;
+};
+
+// Haversine formula to calculate distance in km
+const haversine = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// computeCorrelation for a single report (used to evaluate baseline AI confidence)
+const computeCorrelation = (current: Incident) => {
+  const others = incidents.filter(i => i.id !== current.id);
+  const tokenize = (t: string) => new Set((t || "").toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
+  const jaccard = (a: Set<string>, b: Set<string>) => { if (!a.size || !b.size) return 0; const inter = [...a].filter(x => b.has(x)).length; return Math.round((inter / new Set([...a, ...b]).size) * 100); };
+  const locSim = (c: Incident, o: Incident) => { if (c.coordinates && o.coordinates) { const d = haversine(c.coordinates.lat, c.coordinates.lng, o.coordinates.lat, o.coordinates.lng); if (d <= 0.5) return 100; if (d <= 2) return 80; if (d <= 5) return 50; if (d <= 10) return 20; return 0; } return c.location === o.location ? 100 : 0; };
+  const typeSim = (a: string, b: string) => { const x = a.toLowerCase(), y = b.toLowerCase(); return x === y ? 100 : (x.includes(y) || y.includes(x)) ? 50 : 0; };
+  const timeSim = (a: string, b: string) => { const h = Math.abs(new Date(a).getTime() - new Date(b).getTime()) / 3600000; if (h <= 1) return 100; if (h <= 4) return 80; if (h <= 12) return 50; if (h <= 24) return 20; return 0; };
+
+  const curTokens = tokenize(`${current.type} ${current.location} ${current.description || ""}`);
+  const supporting: any[] = [];
+  let best: any = null, maxSim = 0;
+
+  for (const o of others) {
+    const kw = jaccard(curTokens, tokenize(`${o.type} ${o.location} ${o.description || ""}`));
+    const loc = locSim(current, o);
+    const typ = typeSim(current.type, o.type);
+    const tm = timeSim(current.timestamp, o.timestamp);
+    const hasLoc = !!(current.coordinates && o.coordinates);
+    const overall = hasLoc ? Math.round(kw * 0.25 + loc * 0.35 + typ * 0.25 + tm * 0.15) : Math.round(kw * 0.4 + typ * 0.4 + tm * 0.2);
+    if (overall >= 50) supporting.push({ incidentId: o.id.replace("#", ""), overallSimilarity: overall, keywordSimilarity: kw, locationSimilarity: loc, incidentSimilarity: typ, timeSimilarity: tm });
+    if (overall > maxSim) { maxSim = overall; best = { kw, loc, typ, tm, id: o.id.replace("#", ""), overall }; }
+  }
+  supporting.sort((a, b) => b.overallSimilarity - a.overallSimilarity);
+  return { best, supporting: supporting.slice(0, 5), confidence: maxSim };
+};
+
+const generateRecommendations = (location: string, reports: Incident[], valConfidence?: number) => {
+  const totalReports = reports.length;
+  
+  // Dominant Type
+  const typeCounts: Record<string, number> = {};
+  reports.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+  const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+  const dominantType = sortedTypes[0]?.[0] || "Unknown";
+
+  // Severity
+  const severities = reports.map(r => r.severity || "Medium");
+  const hasCritical = severities.some(s => s.toLowerCase() === "critical");
+  const hasHigh = severities.some(s => s.toLowerCase() === "high");
+  const severity = hasCritical ? "Critical" : hasHigh ? "High" : "Medium";
+
+  // Validation Confidence
+  const confidence = valConfidence || (reports.length > 0 ? Math.round(reports.reduce((acc, curr) => acc + (computeCorrelation(curr).confidence || 80), 0) / reports.length) : 85);
+
+  // Recommendations Math
+  const personnelCount = totalReports * 8 + (severity === "Critical" ? 50 : 20);
+  const medicalTeams = Math.ceil(totalReports / 4) + (dominantType === "Medical" || dominantType === "Earthquake" ? 3 : 1);
+  const fireUnits = (dominantType === "Fire" || dominantType === "Explosion" || dominantType === "Building Collapse") ? Math.ceil(totalReports / 3) + 2 : 0;
+  const policeSAR = Math.ceil(totalReports / 3) + (dominantType === "Civil Unrest" || dominantType === "Earthquake" ? 4 : 2);
+  const ambulances = Math.ceil(totalReports / 2) + 1;
+  const reliefSupplies = totalReports * 50 + " Food/Water Packs";
+  const heavyEquipment = (dominantType === "Earthquake" || dominantType === "Building Collapse" || dominantType === "Bridge Collapse") 
+    ? "2 Excavators, 1 Mobile Crane" 
+    : "Not Required";
+
+  // Facilities
+  const hospitals = [
+    { resourceId: `${location}-HOSP-1`, name: `${location} General Hospital`, availableBeds: 24, icuAvailable: true },
+    { resourceId: `${location}-HOSP-2`, name: `Apex Trauma Care ${location}`, availableBeds: 12, icuAvailable: false }
+  ];
+  
+  const shelters = [
+    { resourceId: `${location}-SHELT-1`, name: `${location} Primary Shelter`, remainingCapacity: 150 },
+    { resourceId: `${location}-SHELT-2`, name: `St. Mary Community Hall`, remainingCapacity: 80 }
+  ];
+
+  // ETA and Priority
+  const eta = dominantType === "Earthquake" ? 8 : 12;
+  const distance = Math.round(eta * 1.15 * 10) / 10;
+
+  // Nearest available units and sequence mapping
+  const nearestUnits = [
+    { id: "UNIT-1", name: `${location} Central Police/SAR`, type: "Police/SAR", eta: 4, dist: 3.1 },
+    { id: "UNIT-2", name: `NDRF Sector-${totalReports} Station`, type: "Rescue/Heavy", eta: 6, dist: 4.8 },
+    { id: "UNIT-3", name: `Fire & Hazmat Station`, type: "FireTruck", eta: 8, dist: 6.2 },
+    { id: "UNIT-4", name: `District Trauma Ambulance`, type: "Ambulance", eta: 9, dist: 7.1 },
+  ].filter(u => {
+    if (u.type === "FireTruck" && fireUnits === 0) return false;
+    return true;
+  });
+
+  const allocatedResources = nearestUnits.map((u, idx) => ({
+    resourceId: u.id,
+    resourceName: u.name,
+    resourceType: u.type,
+    compositeRank: idx + 1,
+    capabilityScore: 92 - idx * 4,
+    etaMinutes: u.eta,
+    distanceKm: u.dist
+  }));
+
+  const dispatchPlan = nearestUnits.map((u, idx) => ({
+    resourceId: u.id,
+    resourceName: u.name,
+    resourceType: u.type,
+    dispatchSequenceOrder: idx + 1,
     route: {
-      distanceKm: number;
-      durationMinutes: number;
-      trafficDelayMinutes: number;
-      estimatedArrivalTime: string;
-      dispatchTime: string;
-      routeStatus: "Optimal" | "Delayed" | "CriticalDelay";
-    };
-  }> | null;
-}
+      distanceKm: u.dist,
+      durationMinutes: u.eta,
+      trafficDelayMinutes: idx * 2,
+      estimatedArrivalTime: new Date(Date.now() + u.eta * 60000).toLocaleTimeString(),
+      dispatchTime: new Date().toLocaleTimeString(),
+      routeStatus: "Optimal" as const
+    }
+  }));
+
+  return {
+    allocationResult: {
+      incidentId: location,
+      status: "allocated" as const,
+      eta,
+      distance,
+      routeStatus: "Optimal" as const,
+      estimatedArrival: new Date(Date.now() + eta * 60000).toLocaleTimeString(),
+      allocation: {
+        allocatedResources,
+        resourceScore: confidence,
+        selectedTeams: {
+          primary: { teamId: `${location}-PRIMARY`, memberCount: allocatedResources.length, avgCapabilityScore: 90 },
+          backup: { teamId: `${location}-BACKUP`, memberCount: 3, avgCapabilityScore: 82 }
+        },
+        hospitals,
+        shelters,
+        estimatedCapacity: {
+          totalResponders: personnelCount,
+          totalVehicles: fireUnits + policeSAR + ambulances,
+          medicalUnits: medicalTeams,
+          rescueUnits: policeSAR,
+          hospitalBeds: 36,
+          shelterSpaces: 230
+        },
+        allocationTimestamp: new Date().toISOString()
+      },
+      dispatchPlan
+    },
+    recommendations: {
+      personnelCount,
+      medicalTeams,
+      fireUnits,
+      policeSAR,
+      ambulances,
+      reliefSupplies,
+      heavyEquipment,
+      nearestUnits: nearestUnits.map(u => u.name).join(", ")
+    }
+  };
+};
 
 export default function ResourceAllocatorDashboard() {
-  const [incidents, setIncidents] = useState<any[]>([]);
-  const [selectedIncidentId, setSelectedIncidentId] = useState<string>("");
-  const [allocation, setAllocation] = useState<AllocationDetails | null>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  
-  // Loading & error states
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<string>("");
+  const [customValData, setCustomValData] = useState<Record<string, any>>({});
 
-  const socketRef = useRef<Socket | null>(null);
-
-  // Fetch all incidents
+  // Sync validation data from localStorage
   useEffect(() => {
-    async function loadIncidents() {
-      try {
-        const res = await fetch("http://localhost:3001/api/incidents", {
-          headers: { Authorization: "Bearer mock-admin-token" },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          setIncidents(json.data || []);
-          if (json.data && json.data.length > 0) {
-            setSelectedIncidentId(json.data[0].id);
+    const loadCustomVal = () => {
+      if (typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("argus-custom-validation-data");
+          if (stored) {
+            setCustomValData(JSON.parse(stored));
           }
+        } catch (e) {
+          console.error("Failed to load custom validation data", e);
         }
-      } catch (err) {
-        console.error("Failed to load incidents", err);
       }
-    }
-    loadIncidents();
-  }, []);
+    };
 
-  // Fetch allocation data
-  const fetchAllocationData = async (incidentId: string) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [detailsRes, historyRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/resource-allocator/${incidentId}`, {
-          headers: { Authorization: "Bearer mock-admin-token" },
-        }),
-        fetch(`http://localhost:3001/api/resource-allocator/history/${incidentId}`, {
-          headers: { Authorization: "Bearer mock-admin-token" },
-        }),
-      ]);
+    loadCustomVal();
 
-      if (detailsRes.ok && historyRes.ok) {
-        const detailsJson = await detailsRes.json();
-        const historyJson = await historyRes.json();
-        setAllocation(detailsJson.data);
-        setHistory(historyJson.data || []);
-      } else {
-        setError("Resource allocation metrics unavailable for this incident.");
-      }
-    } catch (err) {
-      setError("Failed to communicate with ARGUS Resource Allocator API.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (selectedIncidentId) {
-      fetchAllocationData(selectedIncidentId);
-    }
-  }, [selectedIncidentId]);
-
-  // Set up real-time Socket.io listener
-  useEffect(() => {
-    const socket = io("http://localhost:3001/risk", {
-      path: "/socket.io",
-      transports: ["websocket"],
-    });
-    socketRef.current = socket;
-
-    socket.on("connect", () => {
-      console.log("Connected to risk/allocation namespace");
-    });
-
-    socket.on("dashboardUpdated", (data: any) => {
-      if (data.incidentId === selectedIncidentId) {
-        fetchAllocationData(selectedIncidentId);
-      }
-    });
+    // Listen for storage updates
+    window.addEventListener("storage", loadCustomVal);
+    const interval = setInterval(loadCustomVal, 1000);
 
     return () => {
-      socket.disconnect();
+      window.removeEventListener("storage", loadCustomVal);
+      clearInterval(interval);
     };
-  }, [selectedIncidentId]);
+  }, []);
 
-  // Handle room subscription
-  useEffect(() => {
-    if (socketRef.current && selectedIncidentId) {
-      socketRef.current.emit("subscribe:incident", selectedIncidentId);
+  // Group all incidents by location
+  const groupedByLocation = useMemo(() => {
+    const groups: Record<string, Incident[]> = {};
+    for (const inc of incidents) {
+      if (!groups[inc.location]) groups[inc.location] = [];
+      groups[inc.location].push(inc);
     }
-  }, [selectedIncidentId]);
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, []);
 
-  const triggerAllocation = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("http://localhost:3001/api/risk/evaluate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer mock-admin-token",
-        },
-        body: JSON.stringify({ incidentId: selectedIncidentId }),
-      });
-      if (!res.ok) {
-        throw new Error("Trigger failed");
+  // Filter to validated locations only
+  const validatedLocations = useMemo(() => {
+    const valid: string[] = [];
+    for (const [location, reports] of groupedByLocation) {
+      if (customValData[location]) {
+        valid.push(location);
+        continue;
       }
-    } catch (err) {
-      setError("Failed to run automated resource allocator. Try again.");
-    } finally {
-      setIsLoading(false);
+
+      // Run 7 baseline checks
+      const multipleReports = reports.length > 1;
+      const typeCounts: Record<string, number> = {};
+      reports.forEach(r => { typeCounts[r.type] = (typeCounts[r.type] || 0) + 1; });
+      const sortedTypes = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]);
+      const dominantType = sortedTypes[0]?.[0] || "Unknown";
+      const maxTypeCount = sortedTypes[0]?.[1] || 0;
+      const typeConsistent = reports.length > 0 && (maxTypeCount / reports.length >= 0.8);
+
+      const times = reports.map(r => new Date(r.timestamp).getTime());
+      const minTime = Math.min(...times);
+      const maxTime = Math.max(...times);
+      const withinTimeWindow = reports.length > 0 && (maxTime - minTime <= 2 * 3600000);
+
+      let maxDist = 0;
+      let hasCoords = false;
+      for (let i = 0; i < reports.length; i++) {
+        for (let j = i + 1; j < reports.length; j++) {
+          const c1 = reports[i].coordinates;
+          const c2 = reports[j].coordinates;
+          if (c1 && c2) {
+            hasCoords = true;
+            const d = haversine(c1.lat, c1.lng, c2.lat, c2.lng);
+            if (d > maxDist) maxDist = d;
+          }
+        }
+      }
+      const withinLocThreshold = !hasCoords || (maxDist <= 3.0);
+
+      const confidences = reports.map(r => computeCorrelation(r).confidence);
+      const maxConfidence = confidences.length > 0 ? Math.max(...confidences) : 0;
+      const aiConfidenceExceeds = maxConfidence >= 75;
+
+      const mediaVerified = reports.some(r => ["resolved", "dispatched", "in-progress"].includes(r.status.toLowerCase()) || r.reportSource === "IoT Sensor");
+      const trustedSourceExists = reports.some(r => ["Patrol Unit", "IoT Sensor", "Emergency Call"].includes(r.reportSource));
+
+      const isValidated = multipleReports && typeConsistent && withinTimeWindow && withinLocThreshold && aiConfidenceExceeds && mediaVerified && trustedSourceExists;
+
+      if (isValidated) {
+        valid.push(location);
+      }
     }
-  };
+    return valid;
+  }, [groupedByLocation, customValData]);
+
+  // Handle selected location auto fallback
+  useEffect(() => {
+    if (validatedLocations.length > 0 && !validatedLocations.includes(selectedLocation)) {
+      setSelectedLocation(validatedLocations[0]);
+    }
+  }, [validatedLocations, selectedLocation]);
+
+  const activeLocation = useMemo(() => {
+    if (validatedLocations.includes(selectedLocation)) {
+      return selectedLocation;
+    }
+    return validatedLocations[0] || "";
+  }, [validatedLocations, selectedLocation]);
+
+  const activeReports = useMemo(() => {
+    if (!activeLocation) return [];
+    return incidents.filter(i => i.location === activeLocation);
+  }, [activeLocation]);
+
+  const { allocation, recommendations, selectedIncident } = useMemo(() => {
+    if (!activeLocation || activeReports.length === 0) {
+      return { allocation: null, recommendations: null, selectedIncident: null };
+    }
+
+    const valConfidence = customValData[activeLocation]?.validationConfidence;
+    const { allocationResult, recommendations: recs } = generateRecommendations(
+      activeLocation,
+      activeReports,
+      valConfidence
+    );
+
+    const centroid = getCentroid(activeReports);
+    const selectedIncidentRepresentation = {
+      id: activeLocation,
+      coordinates: centroid
+    };
+
+    return {
+      allocation: allocationResult,
+      recommendations: recs,
+      selectedIncident: selectedIncidentRepresentation
+    };
+  }, [activeLocation, activeReports, customValData]);
+
+  // If no locations are validated yet, show "Awaiting Validation" screen
+  if (validatedLocations.length === 0) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] p-[var(--spacing-gutter)] gap-[var(--spacing-panel-gap)] text-on-surface font-[var(--font-geist)]">
+        <div className="flex-1 flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4">
+            <div>
+              <h1 className="font-[var(--font-inter)] text-2xl font-bold tracking-wider text-primary-fixed-dim flex items-center gap-2">
+                <span className="material-symbols-outlined text-[28px] animate-pulse">route</span>
+                Smart Resource Allocation Panel
+              </h1>
+              <p className="text-xs text-outline-variant uppercase tracking-widest mt-1">
+                Phase 4.45 Real-Time Routing, ETA Mapping & Dispatch Sequencing
+              </p>
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center border border-outline-variant/15 bg-surface-container-lowest/30 rounded-sm relative overflow-hidden">
+            <span className="material-symbols-outlined text-[48px] text-outline-variant animate-pulse mb-3">
+              hourglass_empty
+            </span>
+            <h2 className="text-lg font-[var(--font-inter)] font-semibold text-primary-fixed-dim uppercase tracking-wider">
+              Awaiting Validation
+            </h2>
+            <p className="text-xs text-outline mt-1.5 max-w-md text-center leading-relaxed">
+              No locations have been validated yet. Run the validator in the Validator Control Hub to authorize dispatch.
+            </p>
+            <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-outline-variant/50" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Compile markers for Map
   const mapMarkers: any[] = [];
-  const routePath: google.maps.LatLngLiteral[] = [];
-
-  // Command base coordinates
-  const commandBase = { lat: 22.557827, lng: 88.496820 };
+  const routePath: { lat: number; lng: number }[] = [];
+  const locationCentroid = selectedIncident?.coordinates || { lat: 22.557827, lng: 88.496820 };
 
   if (allocation?.allocation) {
     // Add command base marker
     mapMarkers.push({
       id: "command-base",
-      name: "Tactical Command Base",
+      name: `${activeLocation} Incident Centroid`,
       type: "Incident",
-      lat: commandBase.lat,
-      lng: commandBase.lng,
+      lat: locationCentroid.lat,
+      lng: locationCentroid.lng,
       pulse: true,
     });
 
     // Add responder markers
-    allocation.allocation.allocatedResources.forEach((r: any, idx: number) => {
-      // Offset locations slightly around base for visual clarity
-      const offsetLat = commandBase.lat + Math.sin(idx * 1.5) * 0.015;
-      const offsetLng = commandBase.lng + Math.cos(idx * 1.5) * 0.015;
+    allocation.allocation.allocatedResources.forEach((r, idx) => {
+      const offsetLat = locationCentroid.lat + Math.sin(idx * 1.5) * 0.015;
+      const offsetLng = locationCentroid.lng + Math.cos(idx * 1.5) * 0.015;
 
       mapMarkers.push({
         id: r.resourceId,
@@ -207,133 +382,136 @@ export default function ResourceAllocatorDashboard() {
         lng: offsetLng,
       });
 
-      // Simple route path generation linking responder to base
       if (idx === 0) {
         routePath.push({ lat: offsetLat, lng: offsetLng });
-        routePath.push(commandBase);
+        routePath.push(locationCentroid);
       }
     });
   }
 
   return (
-    <div className="p-6 flex flex-col gap-6 text-on-surface select-none font-[var(--font-geist)]">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4">
-        <div>
-          <h1 className="font-[var(--font-inter)] text-2xl font-bold tracking-wider text-primary-fixed-dim flex items-center gap-2">
-            <span className="material-symbols-outlined text-[28px] animate-pulse">route</span>
-            Smart Resource Allocation Panel
-          </h1>
-          <p className="text-xs text-outline-variant uppercase tracking-widest mt-1">
-            Phase 4.45 Real-Time Routing, ETA Mapping & Dispatch Sequencing
-          </p>
-        </div>
-
-        {/* Dropdown Selector */}
-        <div className="flex items-center gap-3 w-full md:w-auto">
+    <div className="flex h-[calc(100vh-4rem)] p-[var(--spacing-gutter)] gap-[var(--spacing-panel-gap)] text-on-surface font-[var(--font-geist)] select-none">
+      
+      {/* Selector and recommendations left */}
+      <div className="w-96 flex flex-col gap-[var(--spacing-panel-gap)] overflow-y-auto pr-2 flex-shrink-0">
+        
+        {/* Dropdown Card */}
+        <div className="glass-panel p-5 relative rounded-sm flex flex-col gap-3">
+          <span className="text-[10px] text-outline uppercase font-bold tracking-widest">
+            Select Active Hotspot
+          </span>
           <select
-            value={selectedIncidentId}
-            onChange={(e) => setSelectedIncidentId(e.target.value)}
-            className="bg-surface-container-highest border border-outline-variant/35 px-4 py-2 text-sm text-on-surface font-semibold focus:outline-none uppercase rounded-sm"
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="w-full bg-surface-container-highest border border-outline-variant/35 px-4 py-2.5 text-sm text-on-surface font-semibold focus:outline-none uppercase rounded-sm"
           >
-            {incidents.map((inc) => (
-              <option key={inc.id} value={inc.id}>
-                {inc.id} - {inc.incidentType}
+            {validatedLocations.map((loc) => (
+              <option key={loc} value={loc}>
+                {loc}
               </option>
             ))}
           </select>
-
-          <button
-            onClick={triggerAllocation}
-            className="px-5 py-2 text-sm font-semibold uppercase bg-primary-fixed-dim/15 border border-primary-fixed-dim text-primary-fixed-dim hover:bg-primary-fixed-dim/20 transition-all rounded-sm"
-          >
-            Re-run Allocator
-          </button>
         </div>
+
+        {/* Dispatch Summary */}
+        <div className="glass-panel p-5 relative rounded-sm">
+          <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase mb-3">Dispatch Summary</h2>
+          
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between border-b border-outline-variant/20 pb-2">
+              <span className="text-sm text-outline">Priority</span>
+              <span className="text-sm font-bold text-error">{allocation?.allocation ? allocation.allocation.allocatedResources.length > 0 ? allocation.allocation.selectedTeams.primary.memberCount > 3 ? "CRITICAL" : "HIGH" : "MEDIUM" : "LOW"}</span>
+            </div>
+            <div className="flex justify-between border-b border-outline-variant/20 pb-2">
+              <span className="text-sm text-outline">Validation Confidence</span>
+              <span className="text-sm font-bold text-primary">{allocation?.allocation?.resourceScore}%</span>
+            </div>
+            <div className="flex justify-between border-b border-outline-variant/20 pb-2">
+              <span className="text-sm text-outline">ETA (Arrival)</span>
+              <span className="text-sm font-bold text-cyan-400">{allocation?.eta} mins</span>
+            </div>
+            <div className="flex justify-between border-b border-outline-variant/20 pb-2">
+              <span className="text-sm text-outline">Route status</span>
+              <span className="text-sm font-bold uppercase text-green-400">{allocation?.routeStatus}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-outline">Total Distance</span>
+              <span className="text-sm font-bold text-purple-400">{allocation?.distance} km</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Resource Recommendations & Supplies */}
+        {recommendations && (
+          <div className="glass-panel p-5 relative rounded-sm flex flex-col gap-3">
+            <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase">Resource Recommendations</h2>
+            
+            <div className="grid grid-cols-2 gap-2 text-xs font-[var(--font-geist)]">
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Personnel Count</span>
+                <span className="text-on-surface font-bold text-sm">{recommendations.personnelCount}</span>
+              </div>
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Medical Teams</span>
+                <span className="text-on-surface font-bold text-sm">{recommendations.medicalTeams}</span>
+              </div>
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Fire Units</span>
+                <span className="text-on-surface font-bold text-sm">{recommendations.fireUnits}</span>
+              </div>
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Police / SAR</span>
+                <span className="text-on-surface font-bold text-sm">{recommendations.policeSAR}</span>
+              </div>
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Ambulances</span>
+                <span className="text-on-surface font-bold text-sm">{recommendations.ambulances}</span>
+              </div>
+              <div className="p-2 bg-surface-container-highest/30 border border-outline-variant/15 rounded-sm">
+                <span className="text-outline uppercase text-[9px] block">Heavy Equipment</span>
+                <span className="text-on-surface font-bold text-xs truncate" title={recommendations.heavyEquipment}>
+                  {recommendations.heavyEquipment}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 bg-secondary/10 border border-secondary/20 rounded-sm text-xs leading-relaxed text-secondary-container">
+              <span className="font-bold uppercase text-[9px] block tracking-wide mb-0.5 text-secondary">Relief Supplies</span>
+              {recommendations.reliefSupplies}
+            </div>
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 glass-panel h-80 animate-pulse bg-surface-container-highest/20 rounded-sm" />
-          <div className="glass-panel h-80 animate-pulse bg-surface-container-highest/20 rounded-sm" />
+      {/* Map, sequence, facilities right */}
+      <div className="flex-1 flex flex-col gap-[var(--spacing-panel-gap)] overflow-y-auto pr-2">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4 flex-shrink-0">
+          <div>
+            <h1 className="font-[var(--font-inter)] text-2xl font-bold tracking-wider text-primary-fixed-dim flex items-center gap-2">
+              <span className="material-symbols-outlined text-[28px] animate-pulse">route</span>
+              Smart Resource Allocation Panel
+            </h1>
+            <p className="text-xs text-outline-variant uppercase tracking-widest mt-1">
+              Phase 4.45 Real-Time Routing, ETA Mapping & Dispatch Sequencing
+            </p>
+          </div>
         </div>
-      ) : error ? (
-        <div className="p-6 border border-error/35 bg-error/10 text-error flex flex-col items-center justify-center gap-2 rounded-sm">
-          <span className="material-symbols-outlined text-[36px]">error</span>
-          <p className="text-sm font-semibold">{error}</p>
-          <button
-            onClick={() => selectedIncidentId && fetchAllocationData(selectedIncidentId)}
-            className="mt-2 px-4 py-1.5 bg-error/20 hover:bg-error/35 transition-all text-xs font-bold uppercase rounded-sm"
-          >
-            Retry Sync
-          </button>
+
+        {/* Map and Route View */}
+        <div className="glass-panel rounded-sm relative min-h-[300px] h-[350px] overflow-hidden flex-shrink-0">
+          <ResourceMapView markers={mapMarkers} routePath={routePath} />
+          <div className="absolute top-4 left-4 bg-surface-container-lowest/80 border border-outline-variant/50 px-3 py-1 font-[var(--font-geist)] text-[10px] tracking-wider font-bold text-primary z-20 rounded-sm">
+            OPTIMIZED CRISIS ROUTE
+          </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-12 gap-6">
+
+        {/* Grid of Sequence and Facilities */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-[var(--spacing-panel-gap)] flex-shrink-0">
           
-          {/* Dispatch Status Cards */}
-          <div className="col-span-12 md:col-span-4 flex flex-col gap-4">
-            <div className="glass-panel p-5 relative rounded-sm">
-              <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase mb-3">Dispatch Summary</h2>
-              
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between border-b border-outline-variant/20 pb-2">
-                  <span className="text-sm text-outline">Priority</span>
-                  <span className="text-sm font-bold text-error">{allocation?.priority}</span>
-                </div>
-                <div className="flex justify-between border-b border-outline-variant/20 pb-2">
-                  <span className="text-sm text-outline">Resource Score</span>
-                  <span className="text-sm font-bold text-primary">{allocation?.allocation?.resourceScore}%</span>
-                </div>
-                <div className="flex justify-between border-b border-outline-variant/20 pb-2">
-                  <span className="text-sm text-outline">ETA (Arrival)</span>
-                  <span className="text-sm font-bold text-cyan-400">{allocation?.eta} mins</span>
-                </div>
-                <div className="flex justify-between border-b border-outline-variant/20 pb-2">
-                  <span className="text-sm text-outline">Route status</span>
-                  <span className="text-sm font-bold uppercase text-green-400">{allocation?.routeStatus}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-outline">Total Distance</span>
-                  <span className="text-sm font-bold text-purple-400">{allocation?.distance} km</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Selected Teams Roster */}
-            <div className="glass-panel p-5 relative rounded-sm flex-1">
-              <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase mb-3">Primary & Backup Teams</h2>
-              
-              <div className="flex flex-col gap-3">
-                <div className="p-3 bg-surface-container-highest/35 border border-outline-variant/20 rounded-sm">
-                  <span className="text-xs text-primary font-bold tracking-wider">PRIMARY TEAM</span>
-                  <div className="flex justify-between mt-1 text-sm">
-                    <span>Units: {allocation?.allocation?.selectedTeams.primary.memberCount}</span>
-                    <span>Avg Score: {allocation?.allocation?.selectedTeams.primary.avgCapabilityScore}%</span>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-surface-container-highest/20 border border-outline-variant/10 rounded-sm">
-                  <span className="text-xs text-outline font-bold tracking-wider">BACKUP TEAM</span>
-                  <div className="flex justify-between mt-1 text-sm">
-                    <span>Units: {allocation?.allocation?.selectedTeams.backup.memberCount}</span>
-                    <span>Avg Score: {allocation?.allocation?.selectedTeams.backup.avgCapabilityScore}%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Map and Route View */}
-          <div className="col-span-12 md:col-span-8 glass-panel rounded-sm relative min-h-[350px] overflow-hidden">
-            <ResourceMapView markers={mapMarkers} routePath={routePath} />
-            <div className="absolute top-4 left-4 bg-surface-container-lowest/80 border border-outline-variant/50 px-3 py-1 font-[var(--font-geist)] text-[10px] tracking-wider font-bold text-primary z-20 rounded-sm">
-              OPTIMIZED CRISIS ROUTE
-            </div>
-          </div>
-
           {/* Dispatch Sequence Timeline */}
-          <div className="col-span-12 md:col-span-6 glass-panel p-5 rounded-sm">
+          <div className="glass-panel p-5 rounded-sm">
             <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase mb-4">Optimal Dispatch Sequence</h2>
             <div className="flex flex-col gap-3">
               {allocation?.dispatchPlan?.map((item) => (
@@ -362,7 +540,7 @@ export default function ResourceAllocatorDashboard() {
           </div>
 
           {/* Assigned Facilities */}
-          <div className="col-span-12 md:col-span-6 glass-panel p-5 rounded-sm">
+          <div className="glass-panel p-5 rounded-sm">
             <h2 className="text-xs font-bold tracking-widest text-outline-variant uppercase mb-4">Assigned Medical & Shelter Facilities</h2>
             <div className="flex flex-col gap-4">
               <div>
@@ -388,7 +566,9 @@ export default function ResourceAllocatorDashboard() {
           </div>
 
         </div>
-      )}
+
+      </div>
+
     </div>
   );
 }

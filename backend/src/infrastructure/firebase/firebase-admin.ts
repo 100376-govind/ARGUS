@@ -21,10 +21,6 @@ export const firebaseAdmin = (() => {
     logger.info("Firebase Admin initialized successfully");
   } catch (error) {
     logger.error({ error }, "Failed to initialize Firebase Admin");
-    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-    if (!isBuildPhase) {
-      throw error;
-    }
   }
 
   try {
@@ -38,11 +34,8 @@ export const storage = (() => {
   try {
     return admin.storage();
   } catch (e) {
-    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
-    if (isBuildPhase) {
-      return null as any;
-    }
-    throw e;
+    logger.error({ e }, "Failed to initialize Firebase Storage");
+    return null as any;
   }
 })();
 

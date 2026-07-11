@@ -1,0 +1,40 @@
+name: ARGUS Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Codebase
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install Project Dependencies
+      run: npm ci
+
+    - name: Lint Code
+      run: npm run lint
+
+    - name: Run Database Code Generation
+      run: npx prisma generate
+
+    - name: Run Test Suite
+      run: npm test -- --run
+
+    - name: Build Next.js Application
+      run: npm run build
+
+    - name: Compile and Verify Docker Build
+      run: |
+        docker build -t argus-backend:latest -f Dockerfile.production .

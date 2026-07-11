@@ -40,8 +40,8 @@ export class SecurityMiddleware {
    */
   public static async rateLimit(req: NextRequest, maxRequests: number = 100, windowSeconds: number = 60): Promise<void> {
     try {
-      if (typeof redisPublisher.incr !== "function") {
-        return; // Skip rate limiting in mock/build environments
+      if (typeof redisPublisher.incr !== "function" || redisPublisher.status !== "ready") {
+        return; // Skip rate limiting in mock/build environments or when Redis is offline
       }
 
       const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown-ip";

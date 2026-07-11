@@ -16,6 +16,7 @@ export const redisPublisher = isBuildPhase
     } as any)
   : new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: null,
+      enableOfflineQueue: false,
       retryStrategy(times) {
         const delay = Math.min(times * 100, 3000);
         return delay;
@@ -32,6 +33,7 @@ export const redisSubscriber = isBuildPhase
     } as any)
   : new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: null,
+      enableOfflineQueue: false,
       retryStrategy(times) {
         const delay = Math.min(times * 100, 3000);
         return delay;

@@ -14,6 +14,7 @@ import { AllocationBuilder } from "./allocation-builder.service";
 import { ResourceAllocatorSharedMemoryIntegration } from "./resource-allocator-memory.service";
 import { ResourceAllocatorService } from "./resource-allocator.service";
 import { ResourceMatchingLogger } from "../utils/resource-matching-logger";
+import { IncidentResourceAnalyzerService } from "./incident-resource-analyzer.service";
 
 /**
  * ResourceMatchingService is the main orchestrator for Phase 4.2.
@@ -34,6 +35,7 @@ export class ResourceMatchingService {
   private readonly capabilityScorer: CapabilityScorer;
   private readonly rankingService: ResourceRankingService;
   private readonly allocationBuilder: AllocationBuilder;
+  private readonly incidentAnalyzer: IncidentResourceAnalyzerService;
 
   constructor(
     private readonly resourceService: ResourceAllocatorService,
@@ -43,6 +45,7 @@ export class ResourceMatchingService {
     this.capabilityScorer = new CapabilityScorer();
     this.rankingService = new ResourceRankingService();
     this.allocationBuilder = new AllocationBuilder();
+    this.incidentAnalyzer = new IncidentResourceAnalyzerService();
   }
 
   /**
@@ -59,8 +62,22 @@ export class ResourceMatchingService {
     this.logger.logMatchingStarted(incident.incidentId, incident.incidentType);
 
     try {
-      // STEP 1: Read available resources
-      const allResources = this.readResources(incident);
+      // STEP 0: Analyze the incident to determine required resources
+      const analysis = this.incidentAnalyzer.analyze(incident);
+
+      // Inject analyzed resource types into the incident so downstream
+      // pipeline stages only consider relevant resource types.
+      const enrichedIncident: ValidatedIncidentInput = {
+        ...incident,
+        requiredResources: analysis.requiredResources,
+      };
+
+      this.logger.info(
+        `Resources Matched: ${incident.incidentId} → types=${analysis.requiredResources.join(",")} count=${analysis.totalResourceCount} tier=${analysis.victimTier}`
+      );
+
+      // STEP 1: Read available resources (filtered by analyzed types)
+      const allResources = this.readResources(enrichedIncident);
 
       // STEP 2: Filter unavailable resources
       const availableResources =
@@ -68,12 +85,12 @@ export class ResourceMatchingService {
 
       if (availableResources.length === 0) {
         throw new Error(
-          `No available resources found for incident ${incident.incidentId} within search radius`
+          `No available resources found for incident ${enrichedIncident.incidentId} within search radius`
         );
       }
 
       this.logger.debug("Available resources identified", {
-        incidentId: incident.incidentId,
+        incidentId: enrichedIncident.incidentId,
         totalResources: allResources.length,
         availableCount: availableResources.length,
       });
@@ -81,7 +98,7 @@ export class ResourceMatchingService {
       // STEP 3: Score resources by capability
       const capabilityScores = this.capabilityScorer.scoreAll(
         availableResources,
-        incident
+        enrichedIncident
       );
 
       // Filter out resources below minimum threshold
@@ -94,7 +111,7 @@ export class ResourceMatchingService {
       );
 
       this.logger.debug("Capability scoring complete", {
-        incidentId: incident.incidentId,
+        incidentId: enrichedIncident.incidentId,
         scoredCount: capabilityScores.length,
         qualifiedCount: qualifiedScores.length,
         filteredOut: capabilityScores.length - qualifiedScores.length,
@@ -104,39 +121,45 @@ export class ResourceMatchingService {
       const rankedResources = this.rankingService.rankResources(
         qualifiedResources,
         qualifiedScores,
-        incident
+        enrichedIncident
       );
 
       const matchDuration = performance.now() - startTime;
       this.logger.logMatchingCompleted(
-        incident.incidentId,
+        enrichedIncident.incidentId,
         rankedResources.length,
         rankedResources.length > 0 ? rankedResources[0].compositeRank : 0,
         matchDuration
       );
 
-      // STEP 5: Generate allocation
+      // STEP 5: Generate allocation (with incident analysis context)
       const allocation = this.allocationBuilder.buildAllocation(
         rankedResources,
-        incident
+        enrichedIncident,
+        analysis
       );
 
       this.logger.logAllocationGenerated(
-        incident.incidentId,
+        enrichedIncident.incidentId,
         allocation.allocationId,
         allocation.primaryTeam.members.length,
         allocation.backupTeam.members.length,
         allocation.resourceScore
       );
 
+      this.logger.info(
+        `Allocation Updated: ${enrichedIncident.incidentId} → allocationId=${allocation.allocationId} requiredTypes=${analysis.requiredResources.join(",")} allocated=${allocation.allocatedResources.length}`
+      );
+
       // STEP 6: Append to Shared Incident Memory (if integration is available)
       if (this.memoryIntegration) {
         await this.memoryIntegration.appendAllocationResult(
-          incident.incidentId,
-          allocation
+          enrichedIncident.incidentId,
+          allocation,
+          analysis
         );
         this.logger.logSharedMemoryUpdated(
-          incident.incidentId,
+          enrichedIncident.incidentId,
           allocation.allocationId
         );
       }
@@ -197,5 +220,9 @@ export class ResourceMatchingService {
 
   public getAllocationBuilder(): AllocationBuilder {
     return this.allocationBuilder;
+  }
+
+  public getIncidentAnalyzer(): IncidentResourceAnalyzerService {
+    return this.incidentAnalyzer;
   }
 }

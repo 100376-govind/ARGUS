@@ -33,14 +33,18 @@ export class RedisEventBus implements IEventBus {
       const messageString = JSON.stringify(payload);
       
       // Atomic publish operation to Redis
-      await redisPublisher.publish(eventName, messageString);
+      if (redisPublisher.status === "ready") {
+        await redisPublisher.publish(eventName, messageString);
+      } else {
+        logger.warn({ eventName }, "Redis Event Bus: Publisher is not connected. Bypassing Redis publish.");
+      }
       
       // Audit log the event into DB for traceability
       await prisma.systemEvent.create({
         data: {
           eventName,
           payload: payload as any,
-          status: "published",
+          status: redisPublisher.status === "ready" ? "published" : "published_offline",
         },
       });
 
@@ -67,8 +71,12 @@ export class RedisEventBus implements IEventBus {
 
     // Register subscription in Redis subscriber client if first callback
     if (channelCallbacks.length === 1) {
-      await redisSubscriber.subscribe(eventName);
-      logger.debug({ eventName }, `Subscribed to Redis channel`);
+      if (redisSubscriber.status === "ready") {
+        await redisSubscriber.subscribe(eventName);
+        logger.debug({ eventName }, `Subscribed to Redis channel`);
+      } else {
+        logger.warn({ eventName }, `Redis Event Bus: Subscriber is not connected. Skipping Redis subscribe.`);
+      }
     }
   }
 }

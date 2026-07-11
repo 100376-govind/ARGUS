@@ -22,8 +22,8 @@ export class RiskEvaluatorCache {
    */
   public async get(incidentId: string): Promise<any | null> {
     try {
-      // Check if client has get method (mocks in test might not have it)
-      if (typeof this.client.get !== "function") {
+      // Check if client has get method (mocks in test might not have it) and is connected
+      if (typeof this.client.get !== "function" || this.client.status !== "ready") {
         return null;
       }
       const key = this.getCacheKey(incidentId);
@@ -43,7 +43,7 @@ export class RiskEvaluatorCache {
    */
   public async set(incidentId: string, assessment: any, ttlSeconds?: number): Promise<void> {
     try {
-      if (typeof this.client.set !== "function") {
+      if (typeof this.client.set !== "function" || this.client.status !== "ready") {
         return;
       }
       const key = this.getCacheKey(incidentId);
@@ -58,11 +58,11 @@ export class RiskEvaluatorCache {
   }
 
   /**
-   * Invalidates a cached assessment.
+   * Invalidate a cached assessment.
    */
   public async invalidate(incidentId: string): Promise<void> {
     try {
-      if (typeof this.client.del !== "function") {
+      if (typeof this.client.del !== "function" || this.client.status !== "ready") {
         return;
       }
       const key = this.getCacheKey(incidentId);
