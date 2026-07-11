@@ -60,10 +60,20 @@ jobs:
         run: |
           DATABASE_URL="postgresql://postgres:password123@localhost:5432/argus_test" npx prisma db push --skip-generate
 
+      - name: Run TypeScript Type Check
+        working-directory: ./backend
+        run: npx tsc --noEmit
+
       - name: Run Test Suite
         working-directory: ./backend
-        run: |
-          DATABASE_URL="postgresql://postgres:password123@localhost:5432/argus_test" REDIS_URL="redis://localhost:6379" npm test
+        env:
+          DATABASE_URL: "postgresql://postgres:password123@localhost:5432/argus_test"
+          REDIS_URL: "redis://localhost:6379"
+          GEMINI_API_KEY: "ci-mock-key"
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_ci_placeholder"
+          CLERK_SECRET_KEY: "sk_test_ci_placeholder"
+          NODE_ENV: "test"
+        run: npm test
 
   docker-build:
     needs: test-and-lint
@@ -86,3 +96,5 @@ jobs:
           tags: argus-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_ci_placeholder

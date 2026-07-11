@@ -1,0 +1,35 @@
+# Force LF line endings for all text files in the repo.
+# This ensures Linux/macOS CI environments and all collaborators get consistent line endings,
+# preventing "bad interpreter" or diff corruption issues when files are authored on Windows.
+
+* text=auto eol=lf
+
+# Explicitly ensure these file types always use LF
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.json      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.prisma    text eol=lf
+*.env*      text eol=lf
+Dockerfile  text eol=lf
+*.sh        text eol=lf
+
+# Binary files — never touch line endings
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.svg       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.eot       binary
+*.mp4       binary
+*.webp      binary

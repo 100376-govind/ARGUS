@@ -21,8 +21,8 @@ export const GET = withErrorCatching(async (req: NextRequest) => {
   // Get Queue stats for Risk Evaluator
   const queueStats = riskEvaluationQueue.getStats();
 
-  const activeTasks = queueStats.active;
-  const waitingTasks = queueStats.waiting;
+  const activeTasks = queueStats.activeWorkers;
+  const waitingTasks = queueStats.queueLength;
   
   // Base memory and CPU for agents with slight variations to make them look real
   const getMem = (offset: number) => Math.max(10, Math.min(95, usedMemPercent + offset));
