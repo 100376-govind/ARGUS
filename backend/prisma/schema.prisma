@@ -43,6 +43,7 @@ model Incident {
   media             Media[]
   auditLogs         AuditLog[]
   agentExecutions   AgentExecution[]
+  riskAssessment    RiskAssessment?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -113,3 +114,171 @@ model WebhookLog {
 
   @@index([createdAt])
 }
+
+model RiskAssessment {
+  id                     String                @id @default(uuid()) @db.Uuid
+  incidentId             String                @unique
+  incident               Incident              @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  severity               String                // LOW, MEDIUM, HIGH, CRITICAL
+  priority               String                // LOW, MEDIUM, HIGH, CRITICAL
+  overallRiskScore       Float                 // Normalized score, e.g., 0.0 - 1.0 or 0 - 100
+  confidence             Float                 // Confidence score, 0.0 - 1.0
+  reasoning              String                @db.Text
+  isProtocolZeroTriggered Boolean              @default(false)
+  threatPredictions      ThreatPrediction[]
+  severityHistory        SeverityHistory[]
+  priorityHistory        PriorityHistory[]
+  reasoningLogs          ReasoningLog[]
+  protocolZeroRequests   ProtocolZeroRequest[]
+  commanderOverrides     CommanderOverride[]
+  createdAt              DateTime              @default(now())
+
+  updatedAt              DateTime              @updatedAt
+
+  @@index([incidentId])
+  @@index([severity])
+  @@index([priority])
+}
+
+model ThreatPrediction {
+  id                 String         @id @default(uuid()) @db.Uuid
+  riskAssessmentId   String         @db.Uuid
+  riskAssessment     RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  threatType         String         // E.g., structural_collapse, wildfire_spread, toxic_leak
+  probability        Float          // 0.0 - 1.0
+  impact             String         // LOW, MEDIUM, HIGH, CRITICAL
+  estimatedTimeframe String         // E.g., "15m", "1h", "immediate"
+  confidence         Float          // 0.0 - 1.0
+  createdAt          DateTime       @default(now())
+
+  @@index([riskAssessmentId])
+  @@index([threatType])
+}
+
+model SeverityHistory {
+  id               String         @id @default(uuid()) @db.Uuid
+  riskAssessmentId String         @db.Uuid
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  severity         String         // LOW, MEDIUM, HIGH, CRITICAL
+  score            Float
+  reason           String         @db.Text
+  changedBy        String         // User ID or system agent identifier
+  createdAt        DateTime       @default(now())
+
+  @@index([riskAssessmentId])
+}
+
+model PriorityHistory {
+  id               String         @id @default(uuid()) @db.Uuid
+  riskAssessmentId String         @db.Uuid
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  priority         String         // LOW, MEDIUM, HIGH, CRITICAL
+  score            Float
+  reason           String         @db.Text
+  changedBy        String         // User ID or system agent identifier
+  createdAt        DateTime       @default(now())
+
+  @@index([riskAssessmentId])
+}
+
+model ProtocolZeroRequest {
+  id               String            @id @default(uuid()) @db.Uuid
+  riskAssessmentId String            @db.Uuid
+  riskAssessment   RiskAssessment    @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  status           String            @default("pending") // pending, approved, rejected, modified, escalated
+  requestedBy      String            // User ID or Agent ID
+  reason           String            @db.Text
+  approvedBy       String?           // Operator ID who authorized it
+  actionedAt       DateTime?
+  approvalRequests ApprovalRequest[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([riskAssessmentId])
+  @@index([status])
+}
+
+model ApprovalRequest {
+  id                    String                @id @default(uuid()) @db.Uuid
+  protocolZeroRequestId String                @db.Uuid
+  protocolZeroRequest   ProtocolZeroRequest   @relation(fields: [protocolZeroRequestId], references: [id], onDelete: Cascade)
+  commanderId           String?
+  status                String                @default("pending") // pending, approved, rejected, modified, escalated, expired
+  timeoutAt             DateTime
+  approvalDecisions     ApprovalDecision[]
+  approvalHistories     ApprovalHistory[]
+  escalationHistories   EscalationHistory[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@index([protocolZeroRequestId])
+  @@index([status])
+}
+
+model ApprovalDecision {
+  id                String          @id @default(uuid()) @db.Uuid
+  approvalRequestId String          @db.Uuid
+  approvalRequest   ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  commanderId       String
+  decision          String          // approved, rejected, modified
+  justification     String          @db.Text
+  modificationPayload Json?
+  createdAt         DateTime        @default(now())
+
+  @@index([approvalRequestId])
+  @@index([commanderId])
+}
+
+model CommanderOverride {
+  id               String         @id @default(uuid()) @db.Uuid
+  riskAssessmentId String         @db.Uuid
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  commanderId      String
+  reason           String         @db.Text
+  overriddenSeverity String?
+  overriddenPriority String?
+  createdAt        DateTime       @default(now())
+
+  @@index([riskAssessmentId])
+}
+
+model ApprovalHistory {
+  id                String          @id @default(uuid()) @db.Uuid
+  approvalRequestId String          @db.Uuid
+  approvalRequest   ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  action            String          // created, approved, rejected, modified, escalated, reminder_sent
+  actor             String
+  notes             String?         @db.Text
+  createdAt         DateTime        @default(now())
+
+  @@index([approvalRequestId])
+}
+
+model EscalationHistory {
+  id                String          @id @default(uuid()) @db.Uuid
+  approvalRequestId String          @db.Uuid
+  approvalRequest   ApprovalRequest @relation(fields: [approvalRequestId], references: [id], onDelete: Cascade)
+  previousCommanderId String?
+  escalatedToCommanderId String
+  reason            String          @db.Text
+  createdAt         DateTime        @default(now())
+
+  @@index([approvalRequestId])
+}
+
+
+model ReasoningLog {
+  id               String         @id @default(uuid()) @db.Uuid
+  riskAssessmentId String         @db.Uuid
+  riskAssessment   RiskAssessment @relation(fields: [riskAssessmentId], references: [id], onDelete: Cascade)
+  agentName        String         // risk-evaluator, threat-predictor, protocol-zero-engine
+  inputPayload     Json
+  outputPayload    Json
+  confidence       Float
+  reasoning        String         @db.Text
+  createdAt        DateTime       @default(now())
+
+  @@index([riskAssessmentId])
+  @@index([agentName])
+}
+

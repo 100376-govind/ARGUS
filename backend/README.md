@@ -1,124 +1,115 @@
-# ARGUS Backend
+# ARGUS Risk Evaluator — Presentation, Communication & Protocol Zero Backend
 
-**AI-Powered Multi-Agent Crisis Command Platform — Backend API Server**
+This is the fully completed production-grade backend for the **Risk Evaluator** module of ARGUS (AI-powered Multi-Agent Crisis Command Platform). 
 
-Production-grade Next.js 15 API server implementing Clean Architecture with multi-agent AI orchestration via Google Gemini 2.5 Pro.
+It contains the complete service layer, REST APIs, real-time Socket.io channels, event-driven Redis Pub/Sub flows, commander review workflows (Protocol Zero), concurrency queue processors, observabilities, and Docker build scripts.
 
 ---
 
-## Architecture
+## 🛠️ Technology Stack
+- **Framework**: Next.js 15 (App Router, running standalone Node runner)
+- **Database**: PostgreSQL with Prisma ORM
+- **Pub/Sub & Caching**: Redis (ioredis)
+- **Real-Time Sockets**: Socket.io (Namespaces `/risk`, room controls)
+- **Structured Logging**: Pino with level tracers
+- **Validation**: Zod (DTO, query, body parameter schema guards)
+- **Testing**: Vitest (Unit, Integration, and Concurrency Load tests)
 
+---
+
+## 🏗️ Architecture Design (Protocol Zero Workflow)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Incident Dispatcher
+    participant Queue as RiskEvaluationQueue
+    participant Service as RiskEvaluationService
+    participant P0Service as ProtocolZeroService
+    actor Commander
+    participant DB as Postgres Database
+    participant Memory as Shared Incident Memory
+    participant Sockets as Socket.io Gateway
+
+    Incident Dispatcher->>Queue: Dispatch IncidentCreated Event
+    activate Queue
+    Queue->>Service: Run Async evaluateIncidentRisk(id)
+    deactivate Queue
+    activate Service
+    Service->>Service: Execute Severity, Priority & Weighted Risk Engines
+    Service->>DB: Save RiskAssessment & Predictions (tx)
+    Service->>Memory: Append Assessment payload (Append-Only)
+    Service->>Sockets: Broadcast "risk:updated" event
+    
+    Note over Service: If Risk Score >= 85 (Protocol Zero Triggered)
+    Service->>P0Service: Trigger initiateApprovalRequest()
+    activate P0Service
+    P0Service->>DB: Write ApprovalRequest & Log Histories (tx)
+    P0Service->>Sockets: Broadcast "protocol_zero:approval_requested"
+    deactivate Service
+    
+    Commander->>P0Service: Action Decision (Approve / Reject / Modify)
+    P0Service->>DB: Record ApprovalDecision & override logs (tx)
+    P0Service->>Memory: Append Approval Status & justified notes
+    P0Service->>Sockets: Broadcast "protocol_zero:completed" and final updates
+    deactivate P0Service
 ```
-backend/src/
-├── app/api/           → Next.js App Router API route handlers
-├── application/       → Use cases & agent services
-│   ├── agents/        → Data Dispatcher service
-│   └── shared-memory/ → Multi-agent shared incident memory
-├── domain/            → Entities, repository contracts, service interfaces
-│   ├── entities/      → IncidentEntity, value types
-│   ├── repositories/  → IIncidentRepository
-│   └── services/      → IAIClient, IEventBus, IMediaService
-├── infrastructure/    → External adapters
-│   ├── database/      → Prisma client & repository implementation
-│   ├── firebase/      → Firebase Cloud Storage media service
-│   ├── gemini/        → Google Gemini AI client (structured output)
-│   ├── logger/        → Pino structured logger
-│   └── redis/         → Redis pub/sub event bus
-├── presentation/      → Middleware (error handler, auth)
-└── shared/            → Config, validation schemas, errors, DI container
+
+---
+
+## 🚀 Getting Started
+
+### 1. Environment Variables (`.env`)
+Create a `.env` file in the `backend/` directory:
+```env
+DATABASE_URL="postgresql://postgres:password123@localhost:5432/argus?schema=public"
+REDIS_URL="redis://localhost:6379"
+GEMINI_API_KEY="AIzaSyYourKeyHere..."
+CLERK_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+FIREBASE_SERVICE_ACCOUNT_KEY='{"type":"service_account",...}'
 ```
 
-## Key Design Decisions
+### 2. Launch Local Database & Cache
+```bash
+docker-compose up -d postgres redis
+```
 
-- **Clean Architecture**: Domain layer has zero external dependencies. Infrastructure adapters implement domain interfaces.
-- **Shared Incident Memory**: Multi-agent coordination layer. Any agent can read/write to an incident's execution history without coupling to other agents.
-- **Structured AI Output**: Gemini client uses `responseMimeType: "application/json"` with `responseSchema` to guarantee valid JSON — no regex parsing.
-- **Audit Trail**: Every mutation is tracked with versioning, changedBy attribution, and immutable history.
-- **Event-Driven**: Redis pub/sub broadcasts `IncidentCreated` events. Falls back to in-memory EventEmitter if Redis is unavailable.
+### 3. Generate Prisma & Run Migrations
+```bash
+npx prisma generate
+npx prisma db push
+```
 
-## API Endpoints
+### 4. Running the Development Server
+```bash
+npm run dev
+```
+The server will boot on [http://localhost:3001](http://localhost:3001).
 
-| Method   | Path                              | Auth     | Description                              |
-|----------|-----------------------------------|----------|------------------------------------------|
-| `GET`    | `/api/health`                     | Public   | System health check                      |
-| `GET`    | `/api/docs`                       | Public   | OpenAPI 3.1 specification                |
-| `GET`    | `/api/incidents`                  | Clerk    | List incidents (filterable, paginated)    |
-| `GET`    | `/api/incidents/:id`              | Clerk    | Get incident by ID                       |
-| `PATCH`  | `/api/incidents/:id`              | Clerk    | Update incident fields                   |
-| `DELETE` | `/api/incidents/:id`              | Clerk    | Soft-delete incident                     |
-| `POST`   | `/api/incidents/text`             | Clerk    | Submit text incident report              |
-| `POST`   | `/api/incidents/audio`            | Clerk    | Submit audio file (transcription)        |
-| `POST`   | `/api/incidents/image`            | Clerk    | Submit image (multimodal analysis)       |
-| `POST`   | `/api/incidents/video`            | Clerk    | Submit video file                        |
-| `POST`   | `/api/incidents/webhook`          | Public   | External integration webhook             |
-| `POST`   | `/api/incidents/bulk`             | Clerk    | Batch-create text incidents              |
-| `GET`    | `/api/incidents/:id/agent-chain`  | Clerk    | Agent execution history                  |
+---
 
-## Tech Stack
-
-| Layer           | Technology                                         |
-|-----------------|---------------------------------------------------|
-| Framework       | Next.js 15 (App Router)                           |
-| Language        | TypeScript 5.7 (strict mode)                      |
-| Database        | PostgreSQL via Prisma ORM                         |
-| AI              | Google Gemini 2.5 Pro (`@google/generative-ai`)   |
-| Storage         | Firebase Cloud Storage (`firebase-admin`)         |
-| Event Bus       | Redis Pub/Sub (`ioredis`)                         |
-| Auth            | Clerk (`@clerk/nextjs`)                           |
-| Validation      | Zod                                               |
-| Logging         | Pino                                              |
-| Testing         | Vitest                                            |
-
-## Setup
+## 🧪 Running the Verification Test Suite
+The backend is covered by Vitest suites testing calculations, controller policies, and queue concurrency limits.
 
 ```bash
-# 1. Install dependencies
-cd backend
-npm install
-
-# 2. Configure environment
-cp .env.example .env
-# Fill in real values in .env
-
-# 3. Generate Prisma client
-npx prisma generate
-
-# 4. Run database migrations
-npx prisma migrate dev --name init
-
-# 5. Start development server
-npm run dev
-# → http://localhost:3001
-
-# 6. Run tests
+# Run all tests
 npm test
 ```
 
-## Database Schema
+---
 
-6 tables: `Incident`, `Reporter`, `Media`, `AgentExecution`, `AuditLog`, `SystemEvent`, `WebhookLog`
+## 🐳 Docker Deployment
 
+### Build & Run Standalone Image
 ```bash
-# View schema visually
-npx prisma studio
-```
+# Build
+docker build -t argus-backend:latest .
 
-## Multi-Agent Pipeline
-
+# Run
+docker run -p 3001:3001 \
+  -e DATABASE_URL="postgresql://postgres:password123@host.docker.internal:5432/argus" \
+  -e REDIS_URL="redis://host.docker.internal:6379" \
+  argus-backend:latest
 ```
-Input (text/audio/image/video/webhook)
-  │
-  ▼
-Data Dispatcher Agent
-  ├── Gemini AI normalization (structured JSON output)
-  ├── Firebase media upload (audio/image/video)
-  ├── Entity extraction (locations, hazards, people, vehicles, orgs)
-  ├── Geolocation extraction
-  ├── Confidence scoring
-  ├── Database persistence (Prisma)
-  ├── Shared Memory write (agent execution record)
-  └── Event broadcast (Redis → IncidentCreated)
-  │
-  ▼
-[Future: Risk Evaluator Agent → Field Validator Agent → Resource Allocator Agent]
-```
+Check health on: `GET http://localhost:3001/api/health`

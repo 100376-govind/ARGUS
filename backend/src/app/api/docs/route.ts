@@ -27,6 +27,7 @@ export async function GET() {
       { name: "Media", description: "Media upload endpoints (audio, image, video)" },
       { name: "Webhooks", description: "External integration webhook receivers" },
       { name: "Agents", description: "Agent execution chain and shared memory" },
+      { name: "Risk Evaluator", description: "AI-powered incident risk classification, predictions and overrides" },
     ],
     paths: {
       "/api/health": {
@@ -105,193 +106,6 @@ export async function GET() {
           },
         },
       },
-      "/api/incidents/text": {
-        post: {
-          tags: ["Incidents"],
-          summary: "Submit a text incident report",
-          description: "Accepts raw text, normalizes with Gemini AI, extracts entities and geolocation, persists the structured incident, and broadcasts an IncidentCreated event.",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["rawContent"],
-                  properties: {
-                    rawContent: { type: "string", minLength: 10, description: "Raw incident description text" },
-                    reporter: {
-                      type: "object",
-                      required: ["name"],
-                      properties: {
-                        name: { type: "string" },
-                        email: { type: "string", format: "email" },
-                        phone: { type: "string" },
-                        role: { type: "string", enum: ["civilian", "operator", "first_responder", "sensor"] },
-                      },
-                    },
-                    metadata: { type: "object" },
-                    tags: { type: "array", items: { type: "string" } },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": {
-              description: "Incident created and dispatched",
-              content: { "application/json": { schema: { $ref: "#/components/schemas/SuccessResponse" } } },
-            },
-            "400": { description: "Validation error" },
-            "500": { description: "Internal server error" },
-          },
-        },
-      },
-      "/api/incidents/audio": {
-        post: {
-          tags: ["Media"],
-          summary: "Submit an audio incident report",
-          description: "Accepts audio file via FormData. Transcribes with Gemini, normalizes, stores in Firebase.",
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["audio"],
-                  properties: {
-                    audio: { type: "string", format: "binary", description: "Audio file (wav, mp3, ogg, webm, flac, aac)" },
-                    reporterName: { type: "string" },
-                    reporterEmail: { type: "string" },
-                    reporterPhone: { type: "string" },
-                    reporterRole: { type: "string" },
-                    metadata: { type: "string", description: "JSON string of metadata" },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": { description: "Audio incident created" },
-            "400": { description: "Invalid audio type or size" },
-          },
-        },
-      },
-      "/api/incidents/image": {
-        post: {
-          tags: ["Media"],
-          summary: "Submit an image incident report",
-          description: "Accepts image file via FormData. Analyzes with Gemini multimodal, normalizes, stores in Firebase.",
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["image"],
-                  properties: {
-                    image: { type: "string", format: "binary", description: "Image file (jpeg, png, webp, gif, bmp)" },
-                    reporterName: { type: "string" },
-                    reporterEmail: { type: "string" },
-                    metadata: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": { description: "Image incident created" },
-            "400": { description: "Invalid image type or size" },
-          },
-        },
-      },
-      "/api/incidents/video": {
-        post: {
-          tags: ["Media"],
-          summary: "Submit a video incident report",
-          description: "Accepts video file via FormData. Stores in Firebase, normalizes description text.",
-          requestBody: {
-            required: true,
-            content: {
-              "multipart/form-data": {
-                schema: {
-                  type: "object",
-                  required: ["video"],
-                  properties: {
-                    video: { type: "string", format: "binary", description: "Video file (mp4, webm, avi, mkv)" },
-                    description: { type: "string" },
-                    reporterName: { type: "string" },
-                    metadata: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": { description: "Video incident created" },
-            "400": { description: "Invalid video type or size" },
-          },
-        },
-      },
-      "/api/incidents/webhook": {
-        post: {
-          tags: ["Webhooks"],
-          summary: "Receive external webhook payload",
-          description: "Accepts structured payloads from Twilio, PagerDuty, etc. Public route (no Clerk auth).",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["source", "payload"],
-                  properties: {
-                    source: { type: "string", description: "Integration source identifier" },
-                    payload: { type: "object", description: "Raw webhook payload" },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": { description: "Webhook incident created" },
-          },
-        },
-      },
-      "/api/incidents/bulk": {
-        post: {
-          tags: ["Incidents"],
-          summary: "Batch-create multiple text incidents",
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["incidents"],
-                  properties: {
-                    incidents: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        required: ["rawContent"],
-                        properties: {
-                          rawContent: { type: "string" },
-                          reporter: { type: "object" },
-                          metadata: { type: "object" },
-                          tags: { type: "array", items: { type: "string" } },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-          responses: {
-            "201": { description: "Bulk incidents created" },
-          },
-        },
-      },
       "/api/incidents/{id}": {
         get: {
           tags: ["Incidents"],
@@ -326,25 +140,122 @@ export async function GET() {
             "404": { description: "Incident not found" },
           },
         },
-        delete: {
-          tags: ["Incidents"],
-          summary: "Soft-delete an incident",
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+      },
+      "/api/risk/evaluate": {
+        post: {
+          tags: ["Risk Evaluator"],
+          summary: "Evaluate incident risk",
+          description: "Orchestrates the evaluation chain for an incident using Gemini AI and core analytical risk engines.",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["incidentId"],
+                  properties: {
+                    incidentId: { type: "string", example: "INC-1234" },
+                  },
+                },
+              },
+            },
+          },
           responses: {
-            "200": { description: "Incident deleted" },
-            "404": { description: "Incident not found" },
+            "201": {
+              description: "Incident risk evaluated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      message: { type: "string", example: "Incident evaluated successfully" },
+                      timestamp: { type: "string", format: "date-time" },
+                      requestId: { type: "string" },
+                      data: { $ref: "#/components/schemas/RiskAssessment" },
+                    },
+                  },
+                },
+              },
+            },
+            "400": { description: "Invalid Incident details provided" },
+            "404": { description: "Incident not found in Shared Memory" },
+            "502": { description: "Gemini AI execution failure" },
           },
         },
       },
-      "/api/incidents/{id}/agent-chain": {
+      "/api/risk/{incidentId}": {
         get: {
-          tags: ["Agents"],
-          summary: "Get agent execution chain for an incident",
-          description: "Returns the full ordered history of all AI agent executions for a given incident.",
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+          tags: ["Risk Evaluator"],
+          summary: "Get risk assessment by incident ID",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
           responses: {
             "200": {
-              description: "Agent execution chain",
+              description: "Risk assessment details",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean", example: true },
+                      data: { $ref: "#/components/schemas/RiskAssessment" },
+                    },
+                  },
+                },
+              },
+            },
+            "404": { description: "Risk assessment not found" },
+          },
+        },
+        patch: {
+          tags: ["Risk Evaluator"],
+          summary: "Override risk assessment values manually",
+          description: "Allows Commander or Admin users to manually override severity, priority, or reasoning values.",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    severity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+                    priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+                    reasoning: { type: "string" },
+                    isProtocolZeroTriggered: { type: "boolean" },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": {
+              description: "Risk assessment updated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: { $ref: "#/components/schemas/RiskAssessment" },
+                    },
+                  },
+                },
+              },
+            },
+            "403": { description: "Access denied. Insufficient roles" },
+            "404": { description: "Risk assessment not found" },
+          },
+        },
+      },
+      "/api/risk/history/{incidentId}": {
+        get: {
+          tags: ["Risk Evaluator"],
+          summary: "Get severity and priority adjustment logs",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": {
+              description: "Risk adjustment history log payload",
               content: {
                 "application/json": {
                   schema: {
@@ -354,12 +265,10 @@ export async function GET() {
                       data: {
                         type: "object",
                         properties: {
+                          assessmentId: { type: "string" },
                           incidentId: { type: "string" },
-                          agentCount: { type: "integer" },
-                          chain: {
-                            type: "array",
-                            items: { $ref: "#/components/schemas/AgentExecution" },
-                          },
+                          severityHistory: { type: "array", items: { $ref: "#/components/schemas/SeverityHistory" } },
+                          priorityHistory: { type: "array", items: { $ref: "#/components/schemas/PriorityHistory" } },
                         },
                       },
                     },
@@ -368,6 +277,37 @@ export async function GET() {
               },
             },
             "404": { description: "Incident not found" },
+          },
+        },
+      },
+      "/api/risk/statistics": {
+        get: {
+          tags: ["Risk Evaluator"],
+          summary: "Get aggregated risk statistics",
+          responses: {
+            "200": {
+              description: "Statistics aggregated successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          totalEvaluated: { type: "integer" },
+                          averageRiskScore: { type: "number" },
+                          protocolZeroTriggeredCount: { type: "integer" },
+                          severityDistribution: { type: "object" },
+                          priorityDistribution: { type: "object" },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -389,44 +329,61 @@ export async function GET() {
             lng: { type: "number", nullable: true },
             locationName: { type: "string", nullable: true },
             extractedEntities: { type: "object" },
-            agentHistory: { type: "array" },
-            auditTrail: { type: "array" },
-            metadata: { type: "object", nullable: true },
-            tags: { type: "array", items: { type: "string" } },
             createdAt: { type: "string", format: "date-time" },
             updatedAt: { type: "string", format: "date-time" },
           },
         },
-        AgentExecution: {
+        RiskAssessment: {
           type: "object",
           properties: {
-            agentName: { type: "string" },
-            status: { type: "string", enum: ["success", "failed"] },
+            id: { type: "string" },
+            incidentId: { type: "string" },
+            severity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+            priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+            overallRiskScore: { type: "number" },
             confidence: { type: "number" },
             reasoning: { type: "string" },
-            outputData: { type: "object" },
-            timestamp: { type: "string", format: "date-time" },
+            isProtocolZeroTriggered: { type: "boolean" },
+            threatPredictions: { type: "array", items: { $ref: "#/components/schemas/ThreatPrediction" } },
+            createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
           },
         },
-        SuccessResponse: {
+        ThreatPrediction: {
           type: "object",
           properties: {
-            success: { type: "boolean" },
-            data: { $ref: "#/components/schemas/Incident" },
+            id: { type: "string" },
+            riskAssessmentId: { type: "string" },
+            threatType: { type: "string" },
+            probability: { type: "number" },
+            impact: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+            estimatedTimeframe: { type: "string" },
+            confidence: { type: "number" },
+            createdAt: { type: "string", format: "date-time" },
           },
         },
-        ErrorResponse: {
+        SeverityHistory: {
           type: "object",
           properties: {
-            success: { type: "boolean", example: false },
-            error: {
-              type: "object",
-              properties: {
-                code: { type: "string" },
-                message: { type: "string" },
-                details: { type: "object" },
-              },
-            },
+            id: { type: "string" },
+            riskAssessmentId: { type: "string" },
+            severity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+            score: { type: "number" },
+            reason: { type: "string" },
+            changedBy: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
+          },
+        },
+        PriorityHistory: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            riskAssessmentId: { type: "string" },
+            priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+            score: { type: "number" },
+            reason: { type: "string" },
+            changedBy: { type: "string" },
+            createdAt: { type: "string", format: "date-time" },
           },
         },
       },
