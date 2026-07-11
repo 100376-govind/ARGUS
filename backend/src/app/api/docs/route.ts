@@ -29,6 +29,7 @@ export async function GET() {
       { name: "Agents", description: "Agent execution chain and shared memory" },
       { name: "Risk Evaluator", description: "AI-powered incident risk classification, predictions and overrides" },
       { name: "Protocol Zero", description: "Commander override approvals, rejections, modifications, and escalation workflows" },
+      { name: "Field Validator", description: "Real-time incident validation, network intelligence and multi-source evidence fusion" },
     ],
     paths: {
       "/api/health": {
@@ -453,6 +454,57 @@ export async function GET() {
             "200": { description: "History logs retrieved" }
           },
         },
+      },
+      "/api/field-validator/{incidentId}": {
+        get: {
+          tags: ["Field Validator"],
+          summary: "Get consolidate validation report",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Validation report retrieved successfully" },
+            "404": { description: "Incident not found" }
+          }
+        }
+      },
+      "/api/field-validator/network/{incidentId}": {
+        get: {
+          tags: ["Field Validator"],
+          summary: "Get Network Intelligence metrics",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Network Intelligence retrieved successfully" }
+          }
+        }
+      },
+      "/api/field-validator/evidence/{incidentId}": {
+        get: {
+          tags: ["Field Validator"],
+          summary: "Get Evidence Breakdown per-source details",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Evidence breakdown details retrieved successfully" }
+          }
+        }
+      },
+      "/api/field-validator/history/{incidentId}": {
+        get: {
+          tags: ["Field Validator"],
+          summary: "Get validation timeline steps",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Timeline steps retrieved successfully" }
+          }
+        }
+      },
+      "/api/field-validator/status/{incidentId}": {
+        get: {
+          tags: ["Field Validator"],
+          summary: "Get current validation status",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Current validation status details retrieved successfully" }
+          }
+        }
       },
     },
     components: {

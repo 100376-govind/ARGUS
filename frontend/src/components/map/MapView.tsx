@@ -3,11 +3,14 @@
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
 
+type ValidationStatus = "Verified" | "Likely Valid" | "Needs Manual Verification" | "Unverified";
+
 interface MapViewProps {
   incidents?: Array<{
     id: string;
     type: string;
     priority: string;
+    validationStatus?: ValidationStatus;
     coordinates?: { lat: number; lng: number };
   }>;
 }
@@ -220,24 +223,52 @@ export default function MapView({ incidents = [] }: MapViewProps) {
               lng: baseCoords.lng + lngOffset,
             };
 
-            const isCritical = inc.priority === "critical";
-            const colorClass = isCritical
+            const isCritical = inc.priority === "critical" && !inc.validationStatus;
+
+            // Validation-status-based coloring takes priority over incident priority
+            const validationColorClass = inc.validationStatus
+              ? inc.validationStatus === "Verified"
+                ? "bg-secondary border-secondary shadow-[0_0_12px_rgba(68,221,193,0.9)] animate-pulse"
+                : inc.validationStatus === "Likely Valid"
+                ? "bg-cyan-400 border-cyan-400 shadow-[0_0_10px_rgba(0,229,255,0.7)]"
+                : inc.validationStatus === "Needs Manual Verification"
+                ? "bg-amber-400 border-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]"
+                : "bg-red-500 border-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]"
+              : null;
+
+            const colorClass = validationColorClass
+              ? validationColorClass
+              : isCritical
               ? "bg-error border-error shadow-[0_0_12px_rgba(255,180,171,0.8)]"
               : inc.priority === "high"
               ? "bg-tertiary-container border-tertiary-container shadow-[0_0_8px_rgba(255,193,192,0.6)]"
               : "bg-secondary-container border-secondary-container";
 
             return (
-              <AdvancedMarker key={inc.id} position={coords} title={`${inc.type} (${inc.priority})`}>
+              <AdvancedMarker
+                key={inc.id}
+                position={coords}
+                title={`${inc.type} (${inc.validationStatus ?? inc.priority})`}
+              >
                 <div className="relative flex flex-col items-center group cursor-pointer">
                   <div className={`w-3.5 h-3.5 rounded-full border-2 border-surface z-10 status-pip ${colorClass}`} />
                   {isCritical && (
                     <div className="absolute w-10 h-10 rounded-full border border-error bg-error/15 animate-ping" />
                   )}
-                  <div className="absolute -top-7 bg-surface-container-lowest/95 border border-outline-variant/30 px-2 py-0.5 rounded-sm font-[var(--font-geist)] text-[9px] font-semibold text-on-surface whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity uppercase z-50">
-                    <span className={isCritical ? "text-error font-bold" : "text-primary-fixed-dim"}>
+                  <div className="absolute -top-10 bg-surface-container-lowest/95 border border-outline-variant/30 px-2 py-1 rounded-sm font-[var(--font-geist)] text-[9px] font-semibold text-on-surface whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                    <div className={isCritical ? "text-error font-bold uppercase" : "text-primary-fixed-dim uppercase"}>
                       {inc.id}: {inc.type}
-                    </span>
+                    </div>
+                    {inc.validationStatus && (
+                      <div className={`text-[8px] font-bold uppercase mt-0.5 ${
+                        inc.validationStatus === "Verified" ? "text-secondary"
+                        : inc.validationStatus === "Likely Valid" ? "text-cyan-400"
+                        : inc.validationStatus === "Needs Manual Verification" ? "text-amber-400"
+                        : "text-red-400"
+                      }`}>
+                        {inc.validationStatus}
+                      </div>
+                    )}
                   </div>
                 </div>
               </AdvancedMarker>
