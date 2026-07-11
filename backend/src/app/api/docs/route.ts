@@ -454,6 +454,29 @@ export async function GET() {
           },
         },
       },
+      "/api/resource-allocator/{incidentId}": {
+        get: {
+          tags: ["Resource Allocator"],
+          summary: "Get resource allocation details",
+          description: "Fetches details of resource allocations and optimized dispatch plans for a specific incident.",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Resource allocation details retrieved successfully" },
+            "404": { description: "Incident not found" },
+          },
+        },
+      },
+      "/api/resource-allocator/history/{incidentId}": {
+        get: {
+          tags: ["Resource Allocator"],
+          summary: "Get resource allocation history log",
+          description: "Fetches historical pipeline executions for matching and route optimization agents.",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "Resource allocation history retrieved successfully" },
+          },
+        },
+      },
     },
     components: {
       schemas: {
