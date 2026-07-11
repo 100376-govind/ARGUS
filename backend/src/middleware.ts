@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 /**
@@ -17,11 +19,24 @@ const isPublicRoute = createRouteMatcher([
   "/api/docs(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect();
-  }
-});
+const defaultMiddleware = (req: NextRequest) => {
+  return NextResponse.next();
+};
+
+const isDevBypass = process.env.NODE_ENV === "development" && 
+  (process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.includes("d29ya2luZy1jb2NrdG9v") || 
+   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.includes("mock") ||
+   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.includes("xxxxx"));
+
+// Export clerkMiddleware or a bypass middleware in local development
+export default isDevBypass
+  ? defaultMiddleware
+  : clerkMiddleware(async (auth: any, request: any) => {
+      if (!isPublicRoute(request)) {
+        await auth.protect();
+      }
+    });
+
 
 export const config = {
   matcher: [

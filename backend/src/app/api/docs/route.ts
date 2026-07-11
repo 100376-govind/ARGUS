@@ -28,6 +28,7 @@ export async function GET() {
       { name: "Webhooks", description: "External integration webhook receivers" },
       { name: "Agents", description: "Agent execution chain and shared memory" },
       { name: "Risk Evaluator", description: "AI-powered incident risk classification, predictions and overrides" },
+      { name: "Protocol Zero", description: "Commander override approvals, rejections, modifications, and escalation workflows" },
     ],
     paths: {
       "/api/health": {
@@ -308,6 +309,148 @@ export async function GET() {
                 },
               },
             },
+          },
+        },
+      },
+      "/api/risk/metrics": {
+        get: {
+          tags: ["Risk Evaluator"],
+          summary: "Get SRE Diagnostics and Latency metrics",
+          responses: {
+            "200": {
+              description: "SRE Diagnostics retrieved successfully",
+              content: {
+                "application/json": {
+                  schema: {
+                    type: "object",
+                    properties: {
+                      success: { type: "boolean" },
+                      data: {
+                        type: "object",
+                        properties: {
+                          timestamp: { type: "string", format: "date-time" },
+                          queue: { type: "object" },
+                          latency: { type: "object" }
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      "/api/protocol-zero/request": {
+        post: {
+          tags: ["Protocol Zero"],
+          summary: "Initiate Commander Approval Review",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["protocolZeroRequestId"],
+                  properties: {
+                    protocolZeroRequestId: { type: "string", format: "uuid" },
+                    commanderId: { type: "string" }
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "201": { description: "Review request successfully triggered" }
+          },
+        },
+      },
+      "/api/protocol-zero/approve": {
+        post: {
+          tags: ["Protocol Zero"],
+          summary: "Approve Protocol Zero trigger override",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["approvalRequestId", "justification"],
+                  properties: {
+                    approvalRequestId: { type: "string", format: "uuid" },
+                    justification: { type: "string", minLength: 5 }
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Override authorization granted" }
+          },
+        },
+      },
+      "/api/protocol-zero/reject": {
+        post: {
+          tags: ["Protocol Zero"],
+          summary: "Reject Protocol Zero trigger override",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["approvalRequestId", "justification"],
+                  properties: {
+                    approvalRequestId: { type: "string", format: "uuid" },
+                    justification: { type: "string", minLength: 5 }
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Override authorization rejected" }
+          },
+        },
+      },
+      "/api/protocol-zero/modify": {
+        patch: {
+          tags: ["Protocol Zero"],
+          summary: "Modify parameters and approve override action",
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["approvalRequestId", "justification", "modifications"],
+                  properties: {
+                    approvalRequestId: { type: "string", format: "uuid" },
+                    justification: { type: "string", minLength: 5 },
+                    modifications: {
+                      type: "object",
+                      properties: {
+                        severity: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+                        priority: { type: "string", enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] }
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          responses: {
+            "200": { description: "Override action approved with custom parameters" }
+          },
+        },
+      },
+      "/api/protocol-zero/history/{incidentId}": {
+        get: {
+          tags: ["Protocol Zero"],
+          summary: "Get all approval history, decisions and auto-escalations",
+          parameters: [{ name: "incidentId", in: "path", required: true, schema: { type: "string" } }],
+          responses: {
+            "200": { description: "History logs retrieved" }
           },
         },
       },
