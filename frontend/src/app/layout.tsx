@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { LiveDemoProvider } from "@/context/LiveDemoContext";
 import "./globals.css";
 
 const inter = Inter({
@@ -34,8 +35,11 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-[#0A0E12] text-on-surface font-[var(--font-inter)] antialiased min-h-screen">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <LiveDemoProvider>{children}</LiveDemoProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
+

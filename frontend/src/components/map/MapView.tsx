@@ -2,6 +2,11 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { useLiveDemo } from "@/context/LiveDemoContext";
+import { useGISLayers } from "./useGISLayers";
+import GISLayerRenderer from "./GISLayerRenderer";
+import GISLayerPanel from "./GISLayerPanel";
+
 
 interface MapViewProps {
   incidents?: Array<{
@@ -111,6 +116,18 @@ function DirectionsRoute({ origin, destination }: { origin: google.maps.LatLngLi
 }
 
 export default function MapView({ incidents = [], selectedIncidentCoordinates }: MapViewProps) {
+  const {
+    gisEnabled,
+    toggleGIS,
+    layers,
+    toggleLayer,
+    mapType,
+    setMapType,
+    validatedLocations,
+    resourcePOIs,
+  } = useGISLayers();
+
+  const { coordinates: globalCoords, locationStatus, lastUpdatedTime } = useLiveDemo();
   const [center, setCenter] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const [liveLocation, setLiveLocation] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const [path, setPath] = useState<google.maps.LatLngLiteral[]>([DEFAULT_CENTER]);
@@ -136,6 +153,33 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
     lastUpdated: new Date().toLocaleTimeString(),
   });
 
+  // Sync with global coordinates if simulation is running
+  useEffect(() => {
+    if (locationStatus === "LIVE") {
+      setLiveLocation(globalCoords);
+      setTelemetry(prev => ({
+        ...prev,
+        latitude: globalCoords.lat,
+        longitude: globalCoords.lng,
+        lastUpdated: lastUpdatedTime
+      }));
+      setPath(prev => {
+        const lastPoint = prev[prev.length - 1];
+        if (lastPoint && lastPoint.lat === globalCoords.lat && lastPoint.lng === globalCoords.lng) {
+          return prev;
+        }
+        return [...prev, globalCoords];
+      });
+      if (autoFollow) {
+        setCenter(globalCoords);
+      }
+      setGeoError(null);
+    } else {
+      setGeoError("Live location unavailable");
+    }
+  }, [globalCoords, locationStatus, lastUpdatedTime, autoFollow]);
+
+
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || "";
 
@@ -147,6 +191,8 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
 
   // Continuously track device location using watchPosition
   useEffect(() => {
+    if (locationStatus === "LIVE") return;
+
     if (!navigator.geolocation) {
       setGeoError("Geolocation is not supported by this operator device.");
       return;
@@ -204,7 +250,7 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, []);
+  }, [locationStatus]);
 
   // Center on single incident if focus list has exactly 1 incident
   useEffect(() => {
@@ -242,19 +288,29 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
 
   return (
     <div className="absolute inset-0 w-full h-full relative">
-      <APIProvider apiKey={apiKey} libraries={["routes"]}>
+      <APIProvider apiKey={apiKey} libraries={["routes", "visualization"]}>
         <Map
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={zoom}
           mapId={mapId || undefined}
+          mapTypeId={gisEnabled ? mapType : "roadmap"}
           disableDefaultUI={true}
           gestureHandling="greedy"
           style={{ width: "100%", height: "100%" }}
         >
           <MapCenterController center={center} zoom={zoom} />
 
-          {/* Live User Location Marker */}
-          {liveLocation && (
+          {/* GIS Render Layer */}
+          <GISLayerRenderer
+            gisEnabled={gisEnabled}
+            layers={layers}
+            validatedLocations={validatedLocations}
+            resourcePOIs={resourcePOIs}
+            liveLocation={liveLocation}
+          />
+
+          {/* Live User Location Marker (only if GIS mode is disabled or liveLocation layer is off) */}
+          {(!gisEnabled || !layers.liveLocation) && liveLocation && (
             <AdvancedMarker position={liveLocation} title="Operator Live Location">
               <div className="relative flex items-center justify-center">
                 <div className="absolute w-12 h-12 rounded-full border border-secondary bg-secondary/15 animate-ping" />
@@ -267,8 +323,8 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
             </AdvancedMarker>
           )}
 
-          {/* Incident Markers */}
-          {incidents.map((inc) => {
+          {/* Incident Markers (only if GIS mode is disabled or incidentMarkers layer is off) */}
+          {(!gisEnabled || !layers.incidentMarkers) && incidents.map((inc) => {
             const baseCoords = liveLocation || DEFAULT_CENTER;
             const latOffset = Math.sin(inc.id.charCodeAt(2) * 10) * 0.015;
             const lngOffset = Math.cos(inc.id.charCodeAt(3) * 10) * 0.015;
@@ -303,6 +359,16 @@ export default function MapView({ incidents = [], selectedIncidentCoordinates }:
           })}
         </Map>
       </APIProvider>
+
+      {/* GIS Layer Controls Panel */}
+      <GISLayerPanel
+        gisEnabled={gisEnabled}
+        toggleGIS={toggleGIS}
+        layers={layers}
+        toggleLayer={toggleLayer}
+        mapType={mapType}
+        setMapType={setMapType}
+      />
 
       {/* Map Control Buttons overlay */}
       <div className="absolute bottom-6 left-6 flex flex-col gap-2 z-20">

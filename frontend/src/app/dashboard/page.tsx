@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLiveDemo } from "@/context/LiveDemoContext";
 import activityData from "@/data/activity.json";
 import incidentsData from "@/data/incidents.json";
 import type { ActivityEntry, ActiveUnit, Incident } from "@/types";
 import MapView from "@/components/map/MapView";
+
 
 interface SimIncidentCard {
   tempId: string;
@@ -77,258 +79,19 @@ const simulationIncidentsData = incidents.map((inc) => ({
 }));
 
 export default function DashboardOverview() {
-  const [liveIncidents, setLiveIncidents] = useState<any[]>(incidents);
-  const [activities, setActivities] = useState<ActivityEntry[]>(activityData as ActivityEntry[]);
-  const [isSimulating, setIsSimulating] = useState(false);
-  
-  // Simulation Timers and Logs
-  const [simTimeline, setSimTimeline] = useState<Array<{ time: string; event: string }>>([]);
-  const [simCards, setSimCards] = useState<SimIncidentCard[]>([]);
-  const [simMessage, setSimMessage] = useState<string | null>(null);
+  const {
+    isSimulating,
+    simTimeline,
+    simCards,
+    simMessage,
+    liveIncidents,
+    activities,
+    startLiveSimulation,
+    stopLiveSimulation,
+    coordinates
+  } = useLiveDemo();
+
   const [selectedIncidentCoordinates, setSelectedIncidentCoordinates] = useState<{ lat: number; lng: number } | null>(null);
-
-  const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const simulationTimeRef = useRef<number>(0);
-
-  // Pre-load default logs
-  useEffect(() => {
-    // Sync live incidents list
-    setLiveIncidents(incidents);
-  }, []);
-
-  const prependActivity = (level: "sys" | "warn" | "act" | "log", message: string) => {
-    setActivities((prev) => [
-      {
-        id: `act-${Math.random().toString(36).substring(2, 9)}`,
-        level,
-        message,
-        timestamp: new Date().toLocaleTimeString(),
-      },
-      ...prev,
-    ]);
-  };
-
-  const startLiveSimulation = () => {
-    if (isSimulating) return;
-
-    // Reset States
-    setIsSimulating(true);
-    setSimTimeline([]);
-    setSimCards([]);
-    setSimMessage(null);
-    setSelectedIncidentCoordinates(null);
-    
-    // Clear static incidents to focus solely on dynamic live demo markers
-    setLiveIncidents([]);
-
-    simulationTimeRef.current = 0;
-    prependActivity("sys", "Multi-Incident Live Simulation started");
-
-    // Add initial timeline entry
-    setSimTimeline([{ time: "00:00", event: "Simulation Started" }]);
-
-    simulationIntervalRef.current = setInterval(async () => {
-      simulationTimeRef.current += 1.5;
-      const t = simulationTimeRef.current;
-      const index = Math.floor(t / 1.5) - 1;
-
-      if (index < simulationIncidentsData.length) {
-        const timeStr = `00:${String(Math.floor(t)).padStart(2, "0")}`;
-        setSimTimeline((prev) => [...prev, { time: timeStr, event: `Incident ${index + 1} Received` }]);
-        triggerSimulatedIncident(index);
-      } else {
-        const timeStr = `00:${String(Math.floor(t)).padStart(2, "0")}`;
-        setSimTimeline((prev) => [...prev, { time: timeStr, event: "Simulation Completed" }]);
-        setSimMessage("Simulation Completed Successfully");
-        setIsSimulating(false);
-        prependActivity("sys", "Simulation completed successfully");
-        if (simulationIntervalRef.current) {
-          clearInterval(simulationIntervalRef.current);
-        }
-      }
-    }, 1500);
-  };
-
-  const triggerSimulatedIncident = async (index: number) => {
-    const rawData = simulationIncidentsData[index];
-    if (!rawData) return;
-
-    const tempId = `TEMP-${index + 1}`;
-    prependActivity("log", `Incoming Signal Detected: ${rawData.type}`);
-
-    // 1. Create a draft Card
-    const newCard: SimIncidentCard = {
-      tempId,
-      id: "PENDING",
-      type: rawData.type,
-      priority: "pending",
-      severity: "pending",
-      confidence: 0,
-      dispatcherStatus: "Receiving...",
-      riskStatus: "Waiting...",
-      rawContent: rawData.rawContent,
-      reasoning: "",
-      glowColor: rawData.glowColor,
-      timestamp: new Date().toLocaleTimeString(),
-      visibleText: "",
-      coordinates: rawData.coordinates,
-    };
-
-    setSimCards((prev) => [newCard, ...prev]);
-
-    // Typewriter effect for raw content typing
-    let textLength = 0;
-    const typeWriterInterval = setInterval(() => {
-      textLength += 3;
-      setSimCards((prev) =>
-        prev.map((c) =>
-          c.tempId === tempId
-            ? { ...c, visibleText: rawData.rawContent.substring(0, textLength) }
-            : c
-        )
-      );
-
-      if (textLength >= rawData.rawContent.length) {
-        clearInterval(typeWriterInterval);
-      }
-    }, 30);
-
-    // 2. Run Dispatcher status steps
-    const steps: Array<SimIncidentCard["dispatcherStatus"]> = [
-      "Understanding...",
-      "Extracting Entities...",
-      "Normalizing...",
-      "Creating Incident...",
-    ];
-
-    for (let i = 0; i < steps.length; i++) {
-      await new Promise((res) => setTimeout(res, 400));
-      setSimCards((prev) =>
-        prev.map((c) => (c.tempId === tempId ? { ...c, dispatcherStatus: steps[i]! } : c))
-      );
-    }
-
-    // 3. Make real call to Data Dispatcher API
-    let incidentId = `INC-${Math.floor(1000 + Math.random() * 9000)}`;
-    let normalizedType = rawData.type;
-
-    try {
-      const dispatchRes = await fetch("http://localhost:3001/api/incidents/text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rawContent: rawData.rawContent,
-          reporter: {
-            name: "Tactical Live Simulation Sensor",
-            role: "sensor",
-          },
-        }),
-      });
-
-      if (dispatchRes.ok) {
-        const result = await dispatchRes.json();
-        incidentId = result.data.id;
-        normalizedType = result.data.incidentType;
-      }
-    } catch (err: any) {
-      console.warn("Live Demo: Data Dispatcher API down, running simulation fallback:", err.message);
-    }
-
-    // Set Dispatcher Completed
-    setSimCards((prev) =>
-      prev.map((c) =>
-        c.tempId === tempId
-          ? { ...c, id: incidentId, type: normalizedType, dispatcherStatus: "Completed", riskStatus: "Analyzing Threat..." }
-          : c
-      )
-    );
-    prependActivity("act", `Dispatcher completed processing for ${incidentId}`);
-
-    // 4. Run Risk Evaluator steps
-    const riskSteps: Array<SimIncidentCard["riskStatus"]> = [
-      "Calculating Severity...",
-      "Calculating Priority...",
-      "Generating Reasoning...",
-    ];
-
-    for (let i = 0; i < riskSteps.length; i++) {
-      await new Promise((res) => setTimeout(res, 400));
-      setSimCards((prev) =>
-        prev.map((c) => (c.tempId === tempId ? { ...c, riskStatus: riskSteps[i]! } : c))
-      );
-    }
-
-    // 5. Make real call to Risk Evaluator API
-    let priorityVal = rawData.priority || "low";
-    let severityVal = rawData.severity || "low";
-    let scoreVal = 30;
-    let confidenceVal = 0.85;
-    let reasoningVal = `Incident assessment completed. Threat level: ${severityVal.toUpperCase()}.`;
-
-    try {
-      const evaluateRes = await fetch("http://localhost:3001/api/risk/evaluate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer mock-admin-token",
-        },
-        body: JSON.stringify({ incidentId }),
-      });
-
-      if (evaluateRes.ok) {
-        const result = await evaluateRes.json();
-        const assessment = result.data;
-        priorityVal = assessment.priority.toLowerCase();
-        severityVal = assessment.severity.toLowerCase();
-        confidenceVal = assessment.confidence;
-        reasoningVal = assessment.reasoning;
-        scoreVal = assessment.overallRiskScore;
-      }
-    } catch (err: any) {
-      console.warn("Live Demo: Risk Evaluator API down, running simulation fallback:", err.message);
-      // Hard fallback matching dynamic incident properties
-      if (rawData.priority === "critical") {
-        priorityVal = "critical"; severityVal = "critical"; confidenceVal = 0.96;
-        reasoningVal = `${rawData.type} emergency. Critical warning signs detected. Resources assigned: ${rawData.assignedAgency}.`;
-      } else if (rawData.priority === "high") {
-        priorityVal = "high"; severityVal = "high"; confidenceVal = 0.91;
-        reasoningVal = `${rawData.type} report. High response priority. Dispatching ${rawData.assignedAgency}.`;
-      } else {
-        priorityVal = rawData.priority; severityVal = rawData.severity; confidenceVal = 0.85;
-        reasoningVal = `Routine response for ${rawData.type}. Location: ${rawData.rawContent.substring(0, 50)}...`;
-      }
-    }
-
-    // Update Card with evaluated data
-    setSimCards((prev) =>
-      prev.map((c) =>
-        c.tempId === tempId
-          ? {
-              ...c,
-              priority: priorityVal,
-              severity: severityVal,
-              confidence: confidenceVal,
-              reasoning: reasoningVal,
-              riskStatus: "Completed",
-            }
-          : c
-      )
-    );
-
-    // Prepend logs to activities
-    prependActivity("sys", `Risk Evaluation completed for ${incidentId} (${priorityVal.toUpperCase()})`);
-    prependActivity("act", `Priority Assigned: ${priorityVal.toUpperCase()} • Shared Memory Updated`);
-
-    // 6. Push real marker on map
-    const newMarker = {
-      id: incidentId,
-      type: normalizedType,
-      priority: priorityVal,
-      coordinates: rawData.coordinates,
-    };
-
-    setLiveIncidents((prev) => [...prev, newMarker]);
-  };
 
   // Sort helper to sort simulation cards dynamically (Critical -> High -> Medium -> Low)
   const priorityOrder: Record<string, number> = {
@@ -339,9 +102,12 @@ export default function DashboardOverview() {
     pending: 0,
   };
 
-  const sortedSimCards = [...simCards].sort((a, b) => {
-    return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
-  });
+  const sortedSimCards = useMemo(() => {
+    return [...simCards].sort((a, b) => {
+      return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0);
+    });
+  }, [simCards]);
+
 
   return (
     <div className="flex h-[calc(100vh-4rem)] relative overflow-hidden">
@@ -364,15 +130,14 @@ export default function DashboardOverview() {
           </div>
 
           <button
-            onClick={startLiveSimulation}
-            disabled={isSimulating}
-            className={`w-full py-2 flex items-center justify-center gap-2 font-[var(--font-geist)] text-[12px] tracking-[0.15em] font-bold rounded-sm uppercase transition-all shadow-[0_0_15px_rgba(255,180,171,0.1)] border ${
+            onClick={isSimulating ? stopLiveSimulation : startLiveSimulation}
+            className={`w-full py-2 flex items-center justify-center gap-2 font-[var(--font-geist)] text-[12px] tracking-[0.15em] font-bold rounded-sm uppercase transition-all border ${
               isSimulating
-                ? "bg-outline/10 border-outline/35 text-outline cursor-not-allowed"
+                ? "bg-error border-error text-on-error hover:bg-error-container hover:text-error animate-pulse shadow-[0_0_20px_rgba(255,180,171,0.3)]"
                 : "bg-error/15 border-error text-error hover:bg-error/30 hover:shadow-[0_0_20px_rgba(255,180,171,0.25)]"
             }`}
           >
-            <span>{isSimulating ? "Simulation Running..." : "Run Live Demo"}</span>
+            <span>{isSimulating ? "Stop Live Demo" : "Run Live Demo"}</span>
           </button>
 
           {/* Timeline display */}

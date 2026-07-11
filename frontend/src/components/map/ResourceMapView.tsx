@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { useLiveDemo } from "@/context/LiveDemoContext";
+
 
 interface MarkerItem {
   id: string;
@@ -190,7 +192,7 @@ function DirectionsRoute({ path, color = "#00DAF3", glowColor = "#00B4D8" }: { p
             strokeColor: color,
             strokeOpacity: 0.7,
             strokeWeight: 3,
-            strokePattern: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.7, scale: 3 }, offset: "0", repeat: "12px" }] as any,
+            icons: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.7, scale: 3 }, offset: "0", repeat: "12px" }],
             map,
           });
           (directionsRenderer as any).__customPolylines = [fallbackPolyline];
@@ -213,6 +215,7 @@ function DirectionsRoute({ path, color = "#00DAF3", glowColor = "#00B4D8" }: { p
 }
 
 export default function ResourceMapView({ markers, routePath, routes, onHospitalsFound, onSheltersFound }: MapProps) {
+  const { coordinates: globalCoords, locationStatus } = useLiveDemo();
   const [center, setCenter] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || "";
@@ -229,9 +232,10 @@ export default function ResourceMapView({ markers, routePath, routes, onHospital
       } else {
         setCenter({ lat: markers[0].lat, lng: markers[0].lng });
       }
+    } else if (locationStatus === "LIVE") {
+      setCenter(globalCoords);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markersKey]);
+  }, [markersKey, locationStatus, globalCoords]);
 
   if (!apiKey) {
     return (

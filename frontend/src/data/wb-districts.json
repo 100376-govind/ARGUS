@@ -1,0 +1,85 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Kolkata", "district": "Kolkata", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.30, 22.50], [88.30, 22.62], [88.42, 22.62], [88.42, 22.50], [88.30, 22.50]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Howrah", "district": "Howrah", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.20, 22.48], [88.20, 22.63], [88.35, 22.63], [88.35, 22.48], [88.20, 22.48]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Haldia", "district": "Purba Medinipur", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.00, 22.00], [88.00, 22.12], [88.15, 22.12], [88.15, 22.00], [88.00, 22.00]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Barrackpore", "district": "North 24 Parganas", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.33, 22.73], [88.33, 22.82], [88.42, 22.82], [88.42, 22.73], [88.33, 22.73]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Salt Lake", "district": "North 24 Parganas", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.38, 22.56], [88.38, 22.60], [88.44, 22.60], [88.44, 22.56], [88.38, 22.56]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Dum Dum", "district": "North 24 Parganas", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.40, 22.62], [88.40, 22.68], [88.46, 22.68], [88.46, 22.62], [88.40, 22.62]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Barasat", "district": "North 24 Parganas", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.44, 22.70], [88.44, 22.78], [88.52, 22.78], [88.52, 22.70], [88.44, 22.70]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Diamond Harbour", "district": "South 24 Parganas", "state": "West Bengal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [88.15, 22.15], [88.15, 22.25], [88.25, 22.25], [88.25, 22.15], [88.15, 22.15]
+        ]]
+      }
+    }
+  ]
+}
