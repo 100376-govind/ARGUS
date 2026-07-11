@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Required for Docker: produces a self-contained build in .next/standalone
+  output: "standalone",
+
   // This is an API-only backend; no pages are rendered.
   // Disable image optimization (API-only, no frontend images).
   images: {

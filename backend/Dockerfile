@@ -1,5 +1,5 @@
-# Base image
-FROM node:20-alpine AS base
+# Base image — Node 22 LTS (Node 20 deprecated on GitHub Actions runners)
+FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -17,9 +17,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Generate Prisma client and build Next.js
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_ENV production
-ENV DATABASE_URL "postgresql://postgres:postgres@localhost:5432/argus"
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+ENV DATABASE_URL="postgresql://postgres:postgres@localhost:5432/argus"
+
+# Dummy env vars required at build time so Next.js doesn't fail on missing references
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_build_placeholder"
+
 RUN npx prisma generate
 RUN npm run build
 
@@ -27,14 +31,15 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV PORT 3001
-ENV HOSTNAME "0.0.0.0"
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3001
+ENV HOSTNAME="0.0.0.0"
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# Copy public assets (may be empty, that's ok)
 COPY --from=builder /app/public ./public
 
 # Set the correct permission for prerender cache
