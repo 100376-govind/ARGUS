@@ -8,7 +8,6 @@ import type { NavItem } from "@/types";
 const mainNavItems: NavItem[] = [
   { label: "Overview", icon: "grid_view", href: "/dashboard" },
   { label: "Incidents", icon: "emergency", href: "/dashboard/incidents" },
-  { label: "Validator", icon: "analytics", href: "/dashboard/validator" },
   { label: "Resources", icon: "inventory_2", href: "/dashboard/resources" },
   { label: "Agents", icon: "groups", href: "/dashboard/agents" },
   { label: "Communications", icon: "cell_tower", href: "/dashboard/communications" },
@@ -50,30 +49,46 @@ export default function Sidebar() {
         {mainNavItems.map((item) => {
           const active = isActive(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`w-full flex items-center px-4 py-3 transition-all duration-200 group-hover:translate-x-1 ${
-                active
-                  ? "bg-secondary-container/20 text-secondary border-l-4 border-secondary relative overflow-hidden"
-                  : "text-outline hover:text-on-surface hover:bg-surface-container-highest/40 border-l-4 border-transparent"
-              }`}
-            >
-              {active && (
-                <div className="absolute inset-0 bg-gradient-to-r from-secondary-container/10 to-transparent pointer-events-none" />
-              )}
-              <span
-                className={`material-symbols-outlined text-[20px] shrink-0 ${
-                  active ? "drop-shadow-[0_0_5px_rgba(68,221,193,0.5)]" : ""
+            <div key={item.href} className="flex flex-col w-full">
+              <Link
+                href={item.href}
+                className={`w-full flex items-center px-4 py-3 transition-all duration-200 group-hover:translate-x-1 ${
+                  active
+                    ? "bg-secondary-container/20 text-secondary border-l-4 border-secondary relative overflow-hidden"
+                    : "text-outline hover:text-on-surface hover:bg-surface-container-highest/40 border-l-4 border-transparent"
                 }`}
-                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
               >
-                {item.icon}
-              </span>
-              <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap tracking-widest uppercase">
-                {item.label}
-              </span>
-            </Link>
+                {active && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-secondary-container/10 to-transparent pointer-events-none" />
+                )}
+                <span
+                  className={`material-symbols-outlined text-[20px] shrink-0 ${
+                    active ? "drop-shadow-[0_0_5px_rgba(68,221,193,0.5)]" : ""
+                  }`}
+                  style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                >
+                  {item.icon}
+                </span>
+                <span className="ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap tracking-widest uppercase">
+                  {item.label}
+                </span>
+              </Link>
+              {item.label === "Incidents" && (
+                <div className="pl-12 py-1 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <Link
+                    href="/dashboard/incidents/validator"
+                    className={`flex items-center gap-2 py-1.5 px-2 rounded-sm text-[11px] transition-all ${
+                      pathname === "/dashboard/incidents/validator"
+                        ? "text-primary font-bold bg-primary/10 border-l-2 border-primary"
+                        : "text-outline hover:text-on-surface"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[15px]">fact_check</span>
+                    <span className="uppercase tracking-widest">Validator</span>
+                  </Link>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>

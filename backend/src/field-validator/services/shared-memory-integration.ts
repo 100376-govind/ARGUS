@@ -77,4 +77,40 @@ export class FieldValidatorSharedMemoryIntegration {
       }
     });
   }
+
+  public async appendEvidenceCorrelation(
+    incidentId: string,
+    correlationData: {
+      evidenceCorrelation: any;
+      supportingReports: any[];
+      similarityScores: {
+        keywordSimilarity: number;
+        locationSimilarity: number;
+        incidentSimilarity: number;
+        timeSimilarity: number;
+      };
+      correlationConfidence: number;
+      validationSource: string;
+      wifiValidation?: any;
+    }
+  ): Promise<void> {
+    const existing = await this.sharedMemory.read(incidentId);
+    if (!existing) throw new Error(`Incident ${incidentId} not found`);
+
+    await this.sharedMemory.write(incidentId, "field-validator", {
+      status: "success",
+      confidence: correlationData.correlationConfidence,
+      reasoning: `Incident validated via ${correlationData.validationSource}.`,
+      outputData: {
+        type: "field-validation-result",
+        EvidenceCorrelation: correlationData.evidenceCorrelation,
+        SupportingReports: correlationData.supportingReports,
+        SimilarityScores: correlationData.similarityScores,
+        CorrelationConfidence: correlationData.correlationConfidence,
+        ValidationSource: correlationData.validationSource,
+        WiFiValidation: correlationData.wifiValidation || null,
+        timestamp: Date.now(),
+      },
+    });
+  }
 }

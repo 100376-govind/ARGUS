@@ -1,6 +1,6 @@
 // === INCIDENT TYPES ===
 export type IncidentPriority = "critical" | "high" | "medium" | "low";
-export type IncidentStatus = "in-progress" | "dispatched" | "resolved" | "pending";
+export type IncidentStatus = "in-progress" | "dispatched" | "resolved" | "pending" | "reported";
 
 export interface Incident {
   id: string;
@@ -13,6 +13,12 @@ export interface Incident {
   eta?: string;
   coordinates?: { lat: number; lng: number };
   timestamp: string;
+  severity?: string;
+  reportSource?: string;
+  assignedAgency?: string;
+  clusterId?: string;
+  description?: string;
+  title?: string;
 }
 
 // === AGENT TYPES ===

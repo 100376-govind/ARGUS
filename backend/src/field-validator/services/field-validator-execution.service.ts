@@ -8,6 +8,9 @@ import { ValidationConfidenceCalculator } from "../ai/inference/validation-confi
 import { FieldValidatorSharedMemoryIntegration } from "./shared-memory-integration";
 import { FieldValidatorLogger } from "../utils/field-validator-logger";
 import { ValidationEvidenceModel } from "../models/network-models";
+import { EvidenceCorrelationService } from "./evidence-correlation.service";
+import { ValidationPriorityService } from "./validation-priority.service";
+import { incidentRepo } from "@/shared/container";
 
 export class FieldValidatorExecutionService {
   private logger = new FieldValidatorLogger("FieldValidatorExecutionService");
@@ -24,28 +27,48 @@ export class FieldValidatorExecutionService {
     this.logger.info(`Execution Started for Incident ${incidentId}`);
 
     try {
-      // 1. Collect Network Data
-      const snapshot = await this.collector.collectSnapshot();
+      const correlationService = new EvidenceCorrelationService(incidentRepo);
+      const priorityService = new ValidationPriorityService(
+        correlationService,
+        this.sharedMemoryIntegration,
+        incidentRepo
+      );
 
-      // 2. Extract AI Features
-      const features = this.featureExtractor.extractFeatures(snapshot);
+      // Define the WiFi validation logic as a callback
+      const executeWiFi = async () => {
+        // 1. Collect Network Data
+        const snapshot = await this.collector.collectSnapshot();
 
-      // 3. Preliminary Estimations
-      const occupancyEstimate = OccupancyEstimator.estimate(features);
-      const infraAssessment = InfrastructureAssessmentService.assess(features);
+        // 2. Extract AI Features
+        const features = this.featureExtractor.extractFeatures(snapshot);
 
-      // 4. Gemini Environmental Analysis
-      const rawInference = await this.analyzer.analyze(features, occupancyEstimate, infraAssessment);
+        // 3. Preliminary Estimations
+        const occupancyEstimate = OccupancyEstimator.estimate(features);
+        const infraAssessment = InfrastructureAssessmentService.assess(features);
 
-      // 5. Build Cautious Inference
-      const safeInference = AIInferenceBuilder.buildValidatedInference(rawInference);
+        // 4. Gemini Environmental Analysis
+        const rawInference = await this.analyzer.analyze(features, occupancyEstimate, infraAssessment);
 
-      // 6. Calculate Final Confidence
-      const finalConfidence = ValidationConfidenceCalculator.calculateOverallConfidence(safeInference);
-      safeInference.validationConfidence = finalConfidence;
+        // 5. Build Cautious Inference
+        const safeInference = AIInferenceBuilder.buildValidatedInference(rawInference);
 
-      // 7. Shared Memory Integration (Append Only)
-      await this.sharedMemoryIntegration.appendEnvironmentalInference(incidentId, safeInference, features);
+        // 6. Calculate Final Confidence
+        const finalConfidence = ValidationConfidenceCalculator.calculateOverallConfidence(safeInference);
+        safeInference.validationConfidence = finalConfidence;
+
+        return {
+          type: "environmental-inference",
+          networkFeatures: features,
+          environmentalInference: safeInference.environmentalInference,
+          validationConfidence: safeInference.validationConfidence,
+          occupancyConfidence: safeInference.occupancyConfidence,
+          communicationConfidence: safeInference.communicationConfidence,
+          infrastructureConfidence: safeInference.infrastructureConfidence,
+          analysisTimestamp: Date.now()
+        };
+      };
+
+      await priorityService.validate(incidentId, executeWiFi);
 
       const duration = performance.now() - startTime;
       this.logger.performance("executeFieldValidation", duration);

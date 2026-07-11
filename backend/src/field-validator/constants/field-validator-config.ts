@@ -12,6 +12,7 @@ export interface IFieldValidatorConfig {
   retryCount: number;
   isRouterEnabled: boolean;
   networkPollingIntervalMs: number;
+  validationThreshold: number;
 }
 
 export const FieldValidatorConfig: IFieldValidatorConfig = {
@@ -24,4 +25,5 @@ export const FieldValidatorConfig: IFieldValidatorConfig = {
   retryCount: parseInt(process.env.FIELD_VALIDATOR_RETRY_COUNT || "3", 10),
   isRouterEnabled: process.env.FIELD_VALIDATOR_ROUTER_ENABLED === "true", // Defaults to false
   networkPollingIntervalMs: parseInt(process.env.FIELD_VALIDATOR_POLLING_INTERVAL_MS || "2000", 10),
+  validationThreshold: parseInt(process.env.VALIDATION_THRESHOLD || "90", 10),
 };

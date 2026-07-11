@@ -62,29 +62,18 @@ const fadeUp = {
   show: { opacity: 1, y: 0 },
 };
 
-// Raw content data for simulation
-const simulationIncidentsData = [
-  {
-    rawContent: "Flash flood has entered our basement. Five people including two children are trapped. Electricity has failed. Water level is rising rapidly.",
-    type: "Flood",
-    glowColor: "red",
-  },
-  {
-    rawContent: "Apartment building partially collapsed after earthquake. People trapped under debris. Smoke visible. Road completely blocked.",
-    type: "Building Collapse",
-    glowColor: "red",
-  },
-  {
-    rawContent: "School bus collided with a fuel tanker. Several children injured. Fuel leaking on highway.",
-    type: "Road Accident",
-    glowColor: "orange",
-  },
-  {
-    rawContent: "Small fire reported inside a warehouse. No people trapped. Fire contained by workers.",
-    type: "Urban Fire",
-    glowColor: "yellow",
-  },
-];
+// Raw content data for simulation mapped from all active incidents in the database
+const simulationIncidentsData = incidents.map((inc) => ({
+  id: inc.id,
+  rawContent: inc.description || `${inc.type} reported in ${inc.location}. Severity: ${inc.severity || "Medium"}.`,
+  type: inc.type,
+  glowColor: inc.priority === "critical" ? "red" : inc.priority === "high" ? "orange" : "yellow",
+  priority: inc.priority,
+  severity: inc.severity || "medium",
+  coordinates: inc.coordinates || { lat: 22.57264, lng: 88.36389 },
+  assignedAgency: inc.responseTeam,
+  reportSource: inc.commander || "Citizen"
+}));
 
 export default function DashboardOverview() {
   const [liveIncidents, setLiveIncidents] = useState<any[]>(incidents);
@@ -136,32 +125,17 @@ export default function DashboardOverview() {
     setSimTimeline([{ time: "00:00", event: "Simulation Started" }]);
 
     simulationIntervalRef.current = setInterval(async () => {
-      simulationTimeRef.current += 1;
+      simulationTimeRef.current += 1.5;
       const t = simulationTimeRef.current;
+      const index = Math.floor(t / 1.5) - 1;
 
-      // 00:02 - Incident 1
-      if (t === 2) {
-        setSimTimeline((prev) => [...prev, { time: "00:02", event: "Incident 1 Received" }]);
-        triggerSimulatedIncident(0);
-      }
-      // 00:05 - Incident 2
-      else if (t === 5) {
-        setSimTimeline((prev) => [...prev, { time: "00:05", event: "Incident 2 Received" }]);
-        triggerSimulatedIncident(1);
-      }
-      // 00:08 - Incident 3
-      else if (t === 8) {
-        setSimTimeline((prev) => [...prev, { time: "00:08", event: "Incident 3 Received" }]);
-        triggerSimulatedIncident(2);
-      }
-      // 00:11 - Incident 4
-      else if (t === 11) {
-        setSimTimeline((prev) => [...prev, { time: "00:11", event: "Incident 4 Received" }]);
-        triggerSimulatedIncident(3);
-      }
-      // 00:14 - Completion
-      else if (t === 14) {
-        setSimTimeline((prev) => [...prev, { time: "00:14", event: "Simulation Completed" }]);
+      if (index < simulationIncidentsData.length) {
+        const timeStr = `00:${String(Math.floor(t)).padStart(2, "0")}`;
+        setSimTimeline((prev) => [...prev, { time: timeStr, event: `Incident ${index + 1} Received` }]);
+        triggerSimulatedIncident(index);
+      } else {
+        const timeStr = `00:${String(Math.floor(t)).padStart(2, "0")}`;
+        setSimTimeline((prev) => [...prev, { time: timeStr, event: "Simulation Completed" }]);
         setSimMessage("Simulation Completed Successfully");
         setIsSimulating(false);
         prependActivity("sys", "Simulation completed successfully");
@@ -169,7 +143,7 @@ export default function DashboardOverview() {
           clearInterval(simulationIntervalRef.current);
         }
       }
-    }, 1000);
+    }, 1500);
   };
 
   const triggerSimulatedIncident = async (index: number) => {
@@ -281,11 +255,11 @@ export default function DashboardOverview() {
     }
 
     // 5. Make real call to Risk Evaluator API
-    let priorityVal = "low";
-    let severityVal = "low";
+    let priorityVal = rawData.priority || "low";
+    let severityVal = rawData.severity || "low";
     let scoreVal = 30;
     let confidenceVal = 0.85;
-    let reasoningVal = "Assessment completed fallback reasoning.";
+    let reasoningVal = `Incident assessment completed. Threat level: ${severityVal.toUpperCase()}.`;
 
     try {
       const evaluateRes = await fetch("http://localhost:3001/api/risk/evaluate", {
@@ -308,19 +282,16 @@ export default function DashboardOverview() {
       }
     } catch (err: any) {
       console.warn("Live Demo: Risk Evaluator API down, running simulation fallback:", err.message);
-      // Hard fallback matching incident defaults
-      if (index === 0) {
+      // Hard fallback matching dynamic incident properties
+      if (rawData.priority === "critical") {
         priorityVal = "critical"; severityVal = "critical"; confidenceVal = 0.96;
-        reasoningVal = "Rising water, multiple victims, children involved, electricity unavailable.";
-      } else if (index === 1) {
-        priorityVal = "critical"; severityVal = "critical"; confidenceVal = 0.94;
-        reasoningVal = "Structural collapse, victims trapped, rescue access blocked.";
-      } else if (index === 2) {
+        reasoningVal = `${rawData.type} emergency. Critical warning signs detected. Resources assigned: ${rawData.assignedAgency}.`;
+      } else if (rawData.priority === "high") {
         priorityVal = "high"; severityVal = "high"; confidenceVal = 0.91;
-        reasoningVal = "Multiple injured, fuel leak, children involved.";
+        reasoningVal = `${rawData.type} report. High response priority. Dispatching ${rawData.assignedAgency}.`;
       } else {
-        priorityVal = "medium"; severityVal = "medium"; confidenceVal = 0.88;
-        reasoningVal = "Fire contained, no victims, limited spread.";
+        priorityVal = rawData.priority; severityVal = rawData.severity; confidenceVal = 0.85;
+        reasoningVal = `Routine response for ${rawData.type}. Location: ${rawData.rawContent.substring(0, 50)}...`;
       }
     }
 
@@ -349,7 +320,7 @@ export default function DashboardOverview() {
       id: incidentId,
       type: normalizedType,
       priority: priorityVal,
-      coordinates: { lat: 22.557827, lng: 88.49682 }, // base centered
+      coordinates: rawData.coordinates,
     };
 
     setLiveIncidents((prev) => [...prev, newMarker]);

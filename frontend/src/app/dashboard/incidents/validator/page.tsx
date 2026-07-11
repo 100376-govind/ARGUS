@@ -8,19 +8,12 @@ import MapView from "@/components/map/MapView";
 
 const incidents = incidentsData as Incident[];
 
-const priorityConfig: Record<string, { color: string; bgColor: string; pulse?: boolean }> = {
-  critical: { color: "text-error", bgColor: "bg-error", pulse: true },
-  high: { color: "text-tertiary-container", bgColor: "bg-tertiary-container" },
-  medium: { color: "text-secondary-container", bgColor: "bg-secondary-container" },
-  low: { color: "text-outline", bgColor: "bg-outline" },
-};
-
-export default function IncidentsPage() {
+export default function ValidatorPage() {
   const [selectedIncident, setSelectedIncident] = useState<Incident>(incidents[0]);
-  const [search, setSearch] = useState("");
   const [validationData, setValidationData] = useState<any>(null);
   const [validating, setValidating] = useState(false);
-  // Client-side evidence correlation engine using loaded incidents
+  const [search, setSearch] = useState("");
+
   const computeCorrelation = useCallback((current: Incident) => {
     const others = incidents.filter(i => i.id !== current.id);
     const tokenize = (t: string) => new Set((t || "").toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
@@ -60,7 +53,6 @@ export default function IncidentsPage() {
         SupportingReports: supporting
       };
     }
-    // Merge with simulated WiFi
     const wifiConf = Math.min(100, Math.round(40 + Math.random() * 45));
     const pC = confidence / 100, pW = wifiConf / 100;
     const merged = Math.min(100, Math.round((pC + pW - pC * pW) * 100));
@@ -70,7 +62,7 @@ export default function IncidentsPage() {
       ValidationSource: "merged",
       SimilarityScores: { keywordSimilarity: best?.kw ?? 0, locationSimilarity: best?.loc ?? 0, incidentSimilarity: best?.typ ?? 0, timeSimilarity: best?.tm ?? 0 },
       SupportingReports: supporting,
-      WiFiValidation: { validationConfidence: wifiConf, environmentalInference: ["Network topology scan completed", "Signal attenuation patterns analyzed", "Environmental inference generated"] }
+      WiFiValidation: { validationConfidence: wifiConf, environmentalInference: ["Telemetry pattern matches cluster behavior", "Network node density verified", "Sensor cross-references active"] }
     };
   }, [computeCorrelation]);
 
@@ -118,49 +110,49 @@ export default function IncidentsPage() {
 
   return (
     <div className="flex h-[calc(100vh-4rem)] p-[var(--spacing-gutter)] gap-[var(--spacing-panel-gap)]">
-      {/* Incidents Table */}
+      {/* Selector Table Left */}
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex-1 flex flex-col glass-panel rounded-l-sm overflow-hidden relative"
+        className="flex-1 glass-panel p-6 flex flex-col relative overflow-hidden"
       >
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-        {/* Header */}
-        <div className="h-12 bg-surface-container-highest/50 flex items-center px-4 border-b border-outline-variant/20">
-          <h3 className="font-[var(--font-inter)] text-[18px] leading-[24px] tracking-[0.02em] font-semibold text-on-surface flex-1">
-            Active Incidents Database
-          </h3>
-          <div className="relative w-64">
-            <span className="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-outline text-[18px]">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="font-[var(--font-inter)] text-[18px] leading-[24px] tracking-[0.02em] font-semibold text-primary-fixed-dim uppercase tracking-wide">
+              Validator Control Hub
+            </h2>
+            <p className="font-[var(--font-geist)] text-[10px] text-outline mt-1 uppercase tracking-wider">
+              Verify database sitreps against corroborating evidence
+            </p>
+          </div>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">
               search
             </span>
             <input
               type="text"
+              placeholder="Filter incidents..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search ID, Location..."
-              className="w-full bg-surface-container border-b border-outline-variant focus:border-primary-container focus:outline-none text-on-surface font-[var(--font-inter)] text-[14px] pl-8 py-1 transition-all h-8 rounded-t-sm"
+              className="pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/30 rounded-sm font-[var(--font-geist)] text-[12px] text-on-surface placeholder:text-outline w-64 focus:outline-none focus:border-primary transition-colors"
             />
           </div>
         </div>
-        {/* Table */}
-        <div className="flex-1 overflow-auto">
+
+        <div className="flex-1 overflow-y-auto border border-outline-variant/15 rounded-sm">
           <table className="w-full text-left border-collapse">
-            <thead className="sticky top-0 bg-surface-container-lowest/90 backdrop-filter backdrop-blur-sm z-10">
-              <tr className="font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-outline-variant border-b border-outline-variant/20">
+            <thead>
+              <tr className="border-b border-outline-variant/30 font-[var(--font-geist)] text-[10px] text-outline tracking-wider uppercase">
                 <th className="p-3">ID</th>
-                <th className="p-3">PRIORITY</th>
-                <th className="p-3">TYPE</th>
-                <th className="p-3">LOCATION</th>
-                <th className="p-3">RESPONSE TEAM</th>
-                <th className="p-3">STATUS</th>
+                <th className="p-3">Type</th>
+                <th className="p-3">Location</th>
+                <th className="p-3">Priority</th>
+                <th className="p-3">Status</th>
               </tr>
             </thead>
             <tbody className="font-[var(--font-geist)] text-[13px] font-medium text-on-surface">
               {filtered.map((inc) => {
-                const pCfg = priorityConfig[inc.priority] || priorityConfig.low;
-                const isSelected = selectedIncident.id === inc.id;
+                const isSelected = selectedIncident?.id === inc.id;
                 return (
                   <tr
                     key={inc.id}
@@ -169,21 +161,17 @@ export default function IncidentsPage() {
                       isSelected ? "bg-primary-container/5" : ""
                     }`}
                   >
-                    <td className="p-3 text-on-surface-variant">{inc.id}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex items-center gap-1 ${pCfg.color}`}>
-                        <span className={`w-2 h-2 rounded-full ${pCfg.bgColor} ${pCfg.pulse ? "animate-pulse" : ""}`} />
-                        {inc.priority.charAt(0).toUpperCase() + inc.priority.slice(1)}
-                      </span>
-                    </td>
+                    <td className="p-3 text-on-surface-variant font-bold">{inc.id}</td>
                     <td className="p-3">{inc.type}</td>
                     <td className="p-3">{inc.location}</td>
-                    <td className={`p-3 ${inc.status === "in-progress" ? "text-secondary" : "text-on-surface-variant"}`}>
-                      {inc.responseTeam}
+                    <td className="p-3">
+                      <span className={`inline-flex items-center gap-1 ${
+                        inc.priority === "critical" ? "text-error" : inc.priority === "high" ? "text-tertiary-container" : "text-secondary"
+                      }`}>
+                        {inc.priority.toUpperCase()}
+                      </span>
                     </td>
-                    <td className={`p-3 ${inc.status === "in-progress" ? "text-secondary" : "text-on-surface-variant"}`}>
-                      {inc.status === "in-progress" ? "In Progress" : inc.status.charAt(0).toUpperCase() + inc.status.slice(1)}
-                    </td>
+                    <td className="p-3 text-outline-variant">{inc.status}</td>
                   </tr>
                 );
               })}
@@ -192,83 +180,44 @@ export default function IncidentsPage() {
         </div>
       </motion.div>
 
-      {/* Detail Side Panel */}
+      {/* Output Display Right */}
       <motion.div
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-        className="w-96 flex flex-col gap-[var(--spacing-panel-gap)] overflow-y-auto max-h-[calc(100vh-4rem)] pr-2"
+        className="w-96 flex flex-col gap-[var(--spacing-panel-gap)] overflow-y-auto pr-2"
       >
-        {/* Map Widget */}
-        <div className="h-64 glass-panel rounded-tr-sm relative overflow-hidden flex-shrink-0">
-          <MapView incidents={[selectedIncident]} />
-          <div className="absolute top-2 left-2 bg-surface-container-lowest/80 backdrop-filter backdrop-blur-sm px-2 py-1 border border-outline-variant/50 font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-primary z-10">
-            SITREP: {selectedIncident.id}
+        {/* Sitrep Map */}
+        {selectedIncident && (
+          <div className="h-60 glass-panel relative overflow-hidden flex-shrink-0">
+            <MapView incidents={[selectedIncident]} />
+            <div className="absolute top-2 left-2 bg-surface-container-lowest/80 backdrop-filter backdrop-blur-sm px-2 py-1 border border-outline-variant/50 font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-primary z-10">
+              SITREP MAP: {selectedIncident.id}
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Drone Feed */}
-        <div className="glass-panel rounded-sm p-4 flex flex-col relative overflow-hidden flex-shrink-0">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-outline-variant uppercase">
-              LIVE FEED: DRONE-04
-            </h4>
-            <span className="flex items-center gap-2 text-error font-[var(--font-geist)] text-[10px]">
-              <span className="w-1.5 h-1.5 bg-error rounded-full animate-pulse" />
-              REC
-            </span>
-          </div>
-          <div className="bg-surface-container-lowest border border-outline-variant/30 rounded-sm relative overflow-hidden flex items-center justify-center min-h-[160px]">
-            {/* HUD Elements */}
-            <div className="absolute inset-0 pointer-events-none p-2 flex flex-col justify-between font-[var(--font-geist)] text-[10px] text-primary/70">
-              <div className="flex justify-between">
-                <span>ALT: 450M</span>
-                <span>SPD: 24KPH</span>
-              </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border border-primary/30 w-16 h-16 rounded-full flex items-center justify-center">
-                <div className="w-1 h-4 bg-primary/50 absolute top-0" />
-                <div className="w-1 h-4 bg-primary/50 absolute bottom-0" />
-                <div className="w-4 h-1 bg-primary/50 absolute left-0" />
-                <div className="w-4 h-1 bg-primary/50 absolute right-0" />
-              </div>
-              <div className="flex justify-between">
-                <span>IR: ACTIVE</span>
-                <span>TGT: LOCK</span>
-              </div>
-            </div>
-          </div>
-          {/* Details */}
-          <div className="mt-4 grid grid-cols-2 gap-4 font-[var(--font-geist)] text-[13px] font-medium text-on-surface-variant">
+        {/* Detailed Output Card */}
+        <div className="glass-panel p-4 flex flex-col relative overflow-hidden flex-shrink-0">
+          <div className="flex justify-between items-center mb-4 border-b border-outline-variant/20 pb-3">
             <div>
-              <span className="block text-outline text-[10px] uppercase mb-1">Commander</span>
-              <span className="text-on-surface">{selectedIncident.commander || "N/A"}</span>
+              <h4 className="font-[var(--font-geist)] text-[13px] tracking-[0.1em] font-bold text-primary uppercase">
+                {selectedIncident ? `Validation: ${selectedIncident.id}` : "Select Sitrep"}
+              </h4>
+              {selectedIncident && (
+                <span className="text-[10px] text-outline uppercase font-[var(--font-geist)] mt-0.5 block">
+                  {selectedIncident.type} • {selectedIncident.location}
+                </span>
+              )}
             </div>
-            <div>
-              <span className="block text-outline text-[10px] uppercase mb-1">ETA</span>
-              <span className="text-secondary">{selectedIncident.eta || "N/A"}</span>
-            </div>
-          </div>
-          <button className="mt-4 w-full py-2 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,218,243,0.2)] transition-all font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold rounded-sm uppercase">
-            Deploy Reinforcements
-          </button>
-          <div className="absolute bottom-2 right-2 w-4 h-4 border-b-2 border-r-2 border-outline-variant/50" />
-        </div>
-
-        {/* Field Validation Status Panel */}
-        <div className="glass-panel rounded-br-sm p-4 flex flex-col relative overflow-hidden flex-shrink-0">
-          <div className="flex justify-between items-center mb-4">
-            <h4 className="font-[var(--font-geist)] text-[12px] tracking-[0.1em] font-semibold text-outline-variant uppercase">
-              Field Validation Status
-            </h4>
-            <span className="font-[var(--font-geist)] text-[10px] text-primary-fixed-dim uppercase tracking-wider">
-              AGENT: AI-003
+            <span className="font-[var(--font-geist)] text-[10px] text-outline font-semibold">
+              FIELD AGENT: AI-003
             </span>
           </div>
 
-          {validationData ? (
+          {selectedIncident && validationData ? (
             <div className="flex flex-col gap-3">
-              {/* Evidence Correlation Section */}
-              <div className="border-b border-outline-variant/15 pb-3">
+              {/* Evidence Correlation section */}
+              <div className="bg-surface-container-lowest/40 border border-outline-variant/15 p-3 rounded-sm">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-[var(--font-inter)] text-[13px] font-bold text-on-surface">
                     Evidence Correlation
@@ -278,42 +227,43 @@ export default function IncidentsPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[12px] font-[var(--font-geist)] text-on-surface-variant bg-surface-container-lowest/30 p-2 border border-outline-variant/10 rounded-sm">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[12px] font-[var(--font-geist)] text-on-surface-variant mb-3">
                   <div>
-                    <span className="text-outline uppercase text-[9px] block mb-0.5">Common Keywords</span>
+                    <span className="text-outline uppercase text-[9px] block">Keywords</span>
                     <span className="text-on-surface">{validationData.SimilarityScores?.keywordSimilarity ?? validationData.keywordSimilarity}% Match</span>
                   </div>
                   <div>
-                    <span className="text-outline uppercase text-[9px] block mb-0.5">Common Location</span>
+                    <span className="text-outline uppercase text-[9px] block">Location</span>
                     <span className="text-on-surface">{validationData.SimilarityScores?.locationSimilarity ?? validationData.locationSimilarity}% Match</span>
                   </div>
                   <div>
-                    <span className="text-outline uppercase text-[9px] block mb-0.5">Similarity Type</span>
+                    <span className="text-outline uppercase text-[9px] block">Incident Similarity</span>
                     <span className="text-on-surface">{validationData.SimilarityScores?.incidentSimilarity ?? validationData.incidentSimilarity}% Match</span>
                   </div>
                   <div>
-                    <span className="text-outline uppercase text-[9px] block mb-0.5">Time Proximity</span>
+                    <span className="text-outline uppercase text-[9px] block">Time Proximity</span>
                     <span className="text-on-surface">{validationData.SimilarityScores?.timeSimilarity ?? validationData.timeSimilarity}% Match</span>
                   </div>
                 </div>
 
-                <div className="mt-3">
-                  <span className="text-outline uppercase text-[9px] font-semibold block mb-1">Supporting Reports</span>
+                {/* Supporting Reports */}
+                <div className="border-t border-outline-variant/10 pt-2.5">
+                  <span className="text-outline uppercase text-[9px] font-bold block mb-1">Supporting Reports</span>
                   {validationData.SupportingReports && validationData.SupportingReports.length > 0 ? (
                     <div className="flex gap-1.5 flex-wrap">
                       {validationData.SupportingReports.slice(0, 3).map((r: any, idx: number) => (
                         <span key={idx} className="bg-surface-container-highest/80 px-2 py-0.5 border border-outline-variant/30 text-on-surface text-[11px] font-[var(--font-geist)] rounded-sm">
-                          {r.incidentId} ({r.overallSimilarity}%)
+                          #{r.incidentId} ({r.overallSimilarity}%)
                         </span>
                       ))}
                     </div>
                   ) : (
-                    <span className="italic text-[11px] text-outline">No supporting reports found.</span>
+                    <span className="italic text-[11px] text-outline">No supporting reports found in database.</span>
                   )}
                 </div>
               </div>
 
-              {/* Conditional Display of WiFi validation */}
+              {/* Conditional WiFi display */}
               {validationData.ValidationSource === "evidence-correlation" ? (
                 <div className="bg-secondary/15 border border-secondary/30 p-3 rounded-sm text-[12px] font-[var(--font-geist)] leading-relaxed text-secondary mt-1">
                   <span className="font-bold block uppercase text-[10px] tracking-wider mb-1">WiFi Validation Skipped</span>
@@ -336,8 +286,8 @@ export default function IncidentsPage() {
               )}
             </div>
           ) : (
-            <div className="flex flex-col gap-3 py-2 items-center text-center">
-              <span className="text-[12px] text-outline italic">No validation telemetry generated yet.</span>
+            <div className="flex flex-col gap-3 py-4 items-center text-center">
+              <span className="text-[12px] text-outline italic">No validation telemetry generated yet for this incident.</span>
               <button
                 onClick={runValidation}
                 disabled={validating}

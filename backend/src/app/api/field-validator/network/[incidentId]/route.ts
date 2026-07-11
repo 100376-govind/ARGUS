@@ -1,50 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withHandler } from "@/presentation/middleware/with-handler";
+import { NetworkCollectorService } from "@/field-validator/collectors/network-collector.service";
+import { FeatureExtractionService } from "@/field-validator/ai/features/feature-extraction.service";
+import { EnvironmentalAnalysisService } from "@/field-validator/ai/gemini/environmental-analysis.service";
+import { FieldValidatorSharedMemoryIntegration } from "@/field-validator/services/shared-memory-integration";
 import { SharedIncidentMemory } from "@/application/shared-memory/shared-incident-memory";
+import { FieldValidatorExecutionService } from "@/field-validator/services/field-validator-execution.service";
 import { incidentRepo } from "@/shared/container";
 import { AppError } from "@/shared/errors/app-error";
 
+const collector = new NetworkCollectorService();
+const featureExtractor = new FeatureExtractionService();
+const analyzer = new EnvironmentalAnalysisService();
 const sharedMemory = new SharedIncidentMemory(incidentRepo);
+const sharedMemoryIntegration = new FieldValidatorSharedMemoryIntegration(sharedMemory);
 
-/**
- * GET /api/field-validator/network/[incidentId] — Returns the Network Intelligence
- * snapshot and AI environmental analysis for a given incident.
- */
-export const GET = withHandler(async (req: NextRequest, context: { params: Promise<{ incidentId: string }> }) => {
+const executionService = new FieldValidatorExecutionService(
+  collector,
+  featureExtractor,
+  analyzer,
+  sharedMemoryIntegration
+);
+
+export const POST = withHandler(async (req: NextRequest, context: { params: Promise<{ incidentId: string }> }) => {
   const { incidentId } = await context.params;
 
-  const incident = await sharedMemory.read(incidentId);
+  const incident = await incidentRepo.findById(incidentId);
   if (!incident) {
     throw AppError.notFound("Incident", incidentId);
   }
 
-  const fieldValidatorOutput = await sharedMemory.getLatestAgentOutput(incidentId, "field-validator");
+  await executionService.executeFieldValidation(incidentId);
 
-  if (!fieldValidatorOutput) {
-    return NextResponse.json({
-      success: true,
-      data: {
-        incidentId,
-        status: "pending",
-        networkSnapshot: null,
-        environmentalAnalysis: null,
-        message: "Network intelligence has not yet been collected for this incident.",
-      },
-    });
-  }
-
-  const outputData = fieldValidatorOutput.outputData || {};
+  // Read latest chain from shared memory to return the updated record
+  const latestOutput = await sharedMemory.getLatestAgentOutput(incidentId, "field-validator");
 
   return NextResponse.json({
     success: true,
-    data: {
-      incidentId,
-      status: "completed",
-      networkSnapshot: outputData.networkSnapshot || null,
-      environmentalAnalysis: outputData.environmentalAnalysis || null,
-      features: outputData.features || null,
-      confidence: fieldValidatorOutput.confidence,
-      timestamp: fieldValidatorOutput.timestamp,
-    },
+    data: latestOutput ? latestOutput.outputData : null
   });
 });
