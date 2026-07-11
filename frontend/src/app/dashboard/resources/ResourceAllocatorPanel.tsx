@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import ResourceMapView from "@/components/map/ResourceMapView";
 import incidentsData from "@/data/incidents.json";
@@ -182,6 +182,16 @@ const generateRecommendations = (location: string, reports: Incident[], valConfi
 export default function ResourceAllocatorDashboard() {
   const [selectedLocation, setSelectedLocation] = useState<string>("");
   const [customValData, setCustomValData] = useState<Record<string, any>>({});
+  const [dynamicHospitals, setDynamicHospitals] = useState<any[] | null>(null);
+  const [dynamicShelters, setDynamicShelters] = useState<any[] | null>(null);
+
+  // Stable callbacks for Places search results
+  const handleHospitalsFound = useCallback((hospitals: any[]) => {
+    setDynamicHospitals(hospitals);
+  }, []);
+  const handleSheltersFound = useCallback((shelters: any[]) => {
+    setDynamicShelters(shelters);
+  }, []);
 
   // Sync validation data from localStorage
   useEffect(() => {
@@ -288,6 +298,12 @@ export default function ResourceAllocatorDashboard() {
     return validatedLocations[0] || "";
   }, [validatedLocations, selectedLocation]);
 
+  // Reset dynamic facilities when active location changes
+  useEffect(() => {
+    setDynamicHospitals(null);
+    setDynamicShelters(null);
+  }, [activeLocation]);
+
   const activeReports = useMemo(() => {
     if (!activeLocation) return [];
     return incidents.filter(i => i.location === activeLocation);
@@ -353,9 +369,17 @@ export default function ResourceAllocatorDashboard() {
     );
   }
 
+  // Determine which facilities to display (dynamic from Google Places or fallback)
+  const displayHospitals = dynamicHospitals && dynamicHospitals.length > 0
+    ? dynamicHospitals
+    : allocation?.allocation?.hospitals || [];
+  const displayShelters = dynamicShelters && dynamicShelters.length > 0
+    ? dynamicShelters
+    : allocation?.allocation?.shelters || [];
+
   // Compile markers for Map
   const mapMarkers: any[] = [];
-  const routePath: { lat: number; lng: number }[] = [];
+  const mapRoutes: { path: { lat: number; lng: number }[]; color?: string; glowColor?: string; label?: string }[] = [];
   const locationCentroid = selectedIncident?.coordinates || { lat: 22.557827, lng: 88.496820 };
 
   if (allocation?.allocation) {
@@ -369,22 +393,72 @@ export default function ResourceAllocatorDashboard() {
       pulse: true,
     });
 
-    // Add responder markers
-    allocation.allocation.allocatedResources.forEach((r, idx) => {
+    // Helper: Haversine distance in km
+    const haversine = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+      const R = 6371;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+      const sinLat = Math.sin(dLat / 2);
+      const sinLng = Math.sin(dLng / 2);
+      const h = sinLat * sinLat + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * sinLng * sinLng;
+      return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    };
+
+    // Build responder positions and add routes for ALL responders to the incident
+    const responderPositions = allocation.allocation.allocatedResources.map((r, idx) => {
       const offsetLat = locationCentroid.lat + Math.sin(idx * 1.5) * 0.015;
       const offsetLng = locationCentroid.lng + Math.cos(idx * 1.5) * 0.015;
+      const pos = { lat: offsetLat, lng: offsetLng };
 
+      // Add route from this responder to incident
+      mapRoutes.push({
+        path: [pos, locationCentroid],
+        color: "#00DAF3",
+        glowColor: "#00B4D8",
+        label: `${r.resourceName} Route`,
+      });
+
+      return {
+        ...r,
+        lat: offsetLat,
+        lng: offsetLng,
+      };
+    });
+
+    // Add all responder markers
+    responderPositions.forEach((r) => {
       mapMarkers.push({
         id: r.resourceId,
         name: r.resourceName,
         type: r.resourceType,
-        lat: offsetLat,
-        lng: offsetLng,
+        lat: r.lat,
+        lng: r.lng,
       });
+    });
 
-      if (idx === 0) {
-        routePath.push({ lat: offsetLat, lng: offsetLng });
-        routePath.push(locationCentroid);
+    // Add all hospital markers
+    displayHospitals.forEach((h: any) => {
+      if (h.lat && h.lng) {
+        mapMarkers.push({
+          id: h.resourceId,
+          name: h.name,
+          type: "Hospital",
+          lat: h.lat,
+          lng: h.lng,
+        });
+      }
+    });
+
+    // Add all shelter markers
+    displayShelters.forEach((s: any) => {
+      if (s.lat && s.lng) {
+        mapMarkers.push({
+          id: s.resourceId,
+          name: s.name,
+          type: "Shelter",
+          lat: s.lat,
+          lng: s.lng,
+        });
       }
     });
   }
@@ -501,7 +575,7 @@ export default function ResourceAllocatorDashboard() {
 
         {/* Map and Route View */}
         <div className="glass-panel rounded-sm relative min-h-[300px] h-[350px] overflow-hidden flex-shrink-0">
-          <ResourceMapView markers={mapMarkers} routePath={routePath} />
+          <ResourceMapView markers={mapMarkers} routes={mapRoutes} onHospitalsFound={handleHospitalsFound} onSheltersFound={handleSheltersFound} />
           <div className="absolute top-4 left-4 bg-surface-container-lowest/80 border border-outline-variant/50 px-3 py-1 font-[var(--font-geist)] text-[10px] tracking-wider font-bold text-primary z-20 rounded-sm">
             OPTIMIZED CRISIS ROUTE
           </div>
@@ -545,22 +619,22 @@ export default function ResourceAllocatorDashboard() {
             <div className="flex flex-col gap-4">
               <div>
                 <h3 className="text-xs font-bold text-purple-400 tracking-wider uppercase mb-2">Hospitals</h3>
-                {allocation?.allocation?.hospitals.map(h => (
+                {displayHospitals.length > 0 ? displayHospitals.map((h: any) => (
                   <div key={h.resourceId} className="flex justify-between text-sm border-b border-outline-variant/15 pb-2">
                     <span>{h.name}</span>
                     <span className="font-bold text-outline-variant">Beds Available: {h.availableBeds}</span>
                   </div>
-                )) || <p className="text-xs text-outline">No hospitals assigned</p>}
+                )) : <p className="text-xs text-outline">No hospitals assigned</p>}
               </div>
 
               <div>
                 <h3 className="text-xs font-bold text-green-400 tracking-wider uppercase mb-2">Shelters</h3>
-                {allocation?.allocation?.shelters.map(s => (
+                {displayShelters.length > 0 ? displayShelters.map((s: any) => (
                   <div key={s.resourceId} className="flex justify-between text-sm border-b border-outline-variant/15 pb-2">
                     <span>{s.name}</span>
                     <span className="font-bold text-outline-variant">Remaining Space: {s.remainingCapacity}</span>
                   </div>
-                )) || <p className="text-xs text-outline">No shelters assigned</p>}
+                )) : <p className="text-xs text-outline">No shelters assigned</p>}
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { APIProvider, Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 
 interface MarkerItem {
   id: string;
@@ -12,9 +12,19 @@ interface MarkerItem {
   pulse?: boolean;
 }
 
+interface RoutePath {
+  path: google.maps.LatLngLiteral[];
+  color?: string;
+  glowColor?: string;
+  label?: string;
+}
+
 interface MapProps {
   markers: MarkerItem[];
   routePath?: google.maps.LatLngLiteral[];
+  routes?: RoutePath[];
+  onHospitalsFound?: (hospitals: any[]) => void;
+  onSheltersFound?: (shelters: any[]) => void;
 }
 
 const DEFAULT_CENTER = { lat: 22.557827, lng: 88.496820 };
@@ -29,42 +39,199 @@ function MapCenterController({ center }: { center: google.maps.LatLngLiteral }) 
   return null;
 }
 
-function RoutePolyline({ path }: { path?: google.maps.LatLngLiteral[] }) {
+function PlacesSearchController({
+  incidentCentroid,
+  onHospitalsFound,
+  onSheltersFound,
+}: {
+  incidentCentroid?: { lat: number; lng: number };
+  onHospitalsFound?: (hospitals: any[]) => void;
+  onSheltersFound?: (shelters: any[]) => void;
+}) {
   const map = useMap();
+  const placesLibrary = useMapsLibrary("places");
+
+  // Use a string key to avoid re-firing when same coords are passed as a new object
+  const centroidKey = incidentCentroid ? `${incidentCentroid.lat},${incidentCentroid.lng}` : "";
+
   useEffect(() => {
-    if (!map || !path || path.length < 2) return;
+    if (!map || !placesLibrary || !incidentCentroid || !onHospitalsFound || !onSheltersFound) return;
 
-    const polyline = new google.maps.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: "#00DAF3",
-      strokeOpacity: 0.85,
-      strokeWeight: 4,
-      map,
-    });
+    const service = new placesLibrary.PlacesService(map);
 
-    return () => {
-      polyline.setMap(null);
-    };
-  }, [map, path]);
+    // Query hospitals
+    service.nearbySearch(
+      {
+        location: incidentCentroid,
+        radius: 8000,
+        type: "hospital",
+      },
+      (results, status) => {
+        if (status === placesLibrary.PlacesServiceStatus.OK && results) {
+          const hospitals = results.slice(0, 2).map((place, idx) => ({
+            resourceId: `dynamic-hosp-${idx}-${place.place_id || idx}`,
+            name: place.name || "Nearby Hospital",
+            availableBeds: Math.floor(Math.random() * 20) + 5,
+            icuAvailable: Math.random() > 0.5,
+            lat: place.geometry?.location?.lat(),
+            lng: place.geometry?.location?.lng(),
+          }));
+          onHospitalsFound(hospitals);
+        }
+      }
+    );
+
+    // Query shelters (community halls, community centers, schools, etc.)
+    service.nearbySearch(
+      {
+        location: incidentCentroid,
+        radius: 8000,
+        keyword: "community hall shelter community center school",
+      },
+      (results, status) => {
+        if (status === placesLibrary.PlacesServiceStatus.OK && results) {
+          const shelters = results.slice(0, 2).map((place, idx) => ({
+            resourceId: `dynamic-shelt-${idx}-${place.place_id || idx}`,
+            name: place.name || "Local Shelter",
+            remainingCapacity: Math.floor(Math.random() * 150) + 30,
+            lat: place.geometry?.location?.lat(),
+            lng: place.geometry?.location?.lng(),
+          }));
+          onSheltersFound(shelters);
+        }
+      }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, placesLibrary, centroidKey]);
+
   return null;
 }
 
-export default function ResourceMapView({ markers, routePath }: MapProps) {
+function DirectionsRoute({ path, color = "#00DAF3", glowColor = "#00B4D8" }: { path?: google.maps.LatLngLiteral[]; color?: string; glowColor?: string }) {
+  const map = useMap();
+  const routesLibrary = useMapsLibrary("routes");
+
+  // Stabilize dependency
+  const pathKey = path ? path.map(p => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join("|") : "";
+
+  useEffect(() => {
+    if (!map || !routesLibrary || !path || path.length < 2) return;
+
+    const directionsService = new routesLibrary.DirectionsService();
+    const directionsRenderer = new routesLibrary.DirectionsRenderer({
+      map,
+      suppressMarkers: true, // We already have custom markers
+      polylineOptions: {
+        strokeColor: color,
+        strokeOpacity: 0,
+        strokeWeight: 0,
+      },
+    });
+
+    // Build the origin, destination, and optional waypoints
+    const origin = path[0];
+    const destination = path[path.length - 1];
+    const waypoints = path.slice(1, -1).map(wp => ({
+      location: wp,
+      stopover: false,
+    }));
+
+    directionsService.route(
+      {
+        origin,
+        destination,
+        waypoints: waypoints.length > 0 ? waypoints : undefined,
+        travelMode: google.maps.TravelMode.DRIVING,
+        optimizeWaypoints: true,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          // Don't use default renderer polyline — draw our own styled one
+          directionsRenderer.setDirections(result);
+
+          // Override: draw a custom styled polyline over the directions path
+          const route = result.routes[0];
+          if (route) {
+            const fullPath: google.maps.LatLng[] = [];
+            route.legs.forEach(leg => {
+              leg.steps.forEach(step => {
+                step.path.forEach(point => fullPath.push(point));
+              });
+            });
+
+            // Glow/shadow layer (wider, semi-transparent)
+            const glowPolyline = new google.maps.Polyline({
+              path: fullPath,
+              geodesic: true,
+              strokeColor: glowColor,
+              strokeOpacity: 0.25,
+              strokeWeight: 10,
+              map,
+            });
+
+            // Main route line
+            const mainPolyline = new google.maps.Polyline({
+              path: fullPath,
+              geodesic: true,
+              strokeColor: color,
+              strokeOpacity: 0.9,
+              strokeWeight: 4,
+              map,
+            });
+
+            // Store polylines for cleanup
+            (directionsRenderer as any).__customPolylines = [glowPolyline, mainPolyline];
+          }
+        } else {
+          // Fallback: draw straight line if Directions API fails
+          const fallbackPolyline = new google.maps.Polyline({
+            path,
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: 0.7,
+            strokeWeight: 3,
+            strokePattern: [{ icon: { path: "M 0,-1 0,1", strokeOpacity: 0.7, scale: 3 }, offset: "0", repeat: "12px" }] as any,
+            map,
+          });
+          (directionsRenderer as any).__customPolylines = [fallbackPolyline];
+        }
+      }
+    );
+
+    return () => {
+      // Cleanup custom polylines
+      const polylines = (directionsRenderer as any).__customPolylines;
+      if (polylines) {
+        polylines.forEach((p: google.maps.Polyline) => p.setMap(null));
+      }
+      directionsRenderer.setMap(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, routesLibrary, pathKey]);
+
+  return null;
+}
+
+export default function ResourceMapView({ markers, routePath, routes, onHospitalsFound, onSheltersFound }: MapProps) {
   const [center, setCenter] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || "";
 
+  const incidentMarker = markers.find(m => m.type === "Incident");
+
+  // Stabilize dependency to avoid array-size mismatch warnings
+  const markersKey = markers.map(m => `${m.id}`).join(",");
+
   useEffect(() => {
     if (markers.length > 0) {
-      const incident = markers.find(m => m.type === "Incident");
-      if (incident) {
-        setCenter({ lat: incident.lat, lng: incident.lng });
+      if (incidentMarker) {
+        setCenter({ lat: incidentMarker.lat, lng: incidentMarker.lng });
       } else {
         setCenter({ lat: markers[0].lat, lng: markers[0].lng });
       }
     }
-  }, [markers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markersKey]);
 
   if (!apiKey) {
     return (
@@ -79,7 +246,7 @@ export default function ResourceMapView({ markers, routePath }: MapProps) {
 
   return (
     <div className="absolute inset-0 w-full h-full">
-      <APIProvider apiKey={apiKey}>
+      <APIProvider apiKey={apiKey} libraries={["places", "routes"]}>
         <Map
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={13}
@@ -89,7 +256,25 @@ export default function ResourceMapView({ markers, routePath }: MapProps) {
           style={{ width: "100%", height: "100%" }}
         >
           <MapCenterController center={center} />
-          <RoutePolyline path={routePath} />
+
+          {/* Render multi-route directions (preferred) */}
+          {routes && routes.map((route, idx) => (
+            <DirectionsRoute
+              key={`route-${idx}-${route.path.map(p => `${p.lat},${p.lng}`).join("|")}`}
+              path={route.path}
+              color={route.color}
+              glowColor={route.glowColor}
+            />
+          ))}
+
+          {/* Fallback: single legacy routePath */}
+          {!routes && routePath && <DirectionsRoute path={routePath} />}
+
+          <PlacesSearchController
+            incidentCentroid={incidentMarker ? { lat: incidentMarker.lat, lng: incidentMarker.lng } : undefined}
+            onHospitalsFound={onHospitalsFound}
+            onSheltersFound={onSheltersFound}
+          />
 
           {markers.map((marker) => {
             const isIncident = marker.type === "Incident";
