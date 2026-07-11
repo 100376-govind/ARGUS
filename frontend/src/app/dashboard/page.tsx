@@ -21,6 +21,7 @@ interface SimIncidentCard {
   timestamp: string;
   glowColor: string; // "red" | "orange" | "yellow"
   visibleText: string;
+  coordinates?: { lat: number; lng: number };
 }
 
 const systemMetrics = [
@@ -84,6 +85,7 @@ export default function DashboardOverview() {
   const [simTimeline, setSimTimeline] = useState<Array<{ time: string; event: string }>>([]);
   const [simCards, setSimCards] = useState<SimIncidentCard[]>([]);
   const [simMessage, setSimMessage] = useState<string | null>(null);
+  const [selectedIncidentCoordinates, setSelectedIncidentCoordinates] = useState<{ lat: number; lng: number } | null>(null);
 
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const simulationTimeRef = useRef<number>(0);
@@ -114,6 +116,7 @@ export default function DashboardOverview() {
     setSimTimeline([]);
     setSimCards([]);
     setSimMessage(null);
+    setSelectedIncidentCoordinates(null);
     
     // Clear static incidents to focus solely on dynamic live demo markers
     setLiveIncidents([]);
@@ -168,6 +171,7 @@ export default function DashboardOverview() {
       glowColor: rawData.glowColor,
       timestamp: new Date().toLocaleTimeString(),
       visibleText: "",
+      coordinates: rawData.coordinates,
     };
 
     setSimCards((prev) => [newCard, ...prev]);
@@ -410,7 +414,8 @@ export default function DashboardOverview() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ type: "spring", damping: 15 }}
-                  className={`glass-panel border p-3 flex flex-col gap-2 rounded-sm ${borderGlow}`}
+                  onClick={() => card.coordinates && setSelectedIncidentCoordinates(card.coordinates)}
+                  className={`glass-panel border p-3 flex flex-col gap-2 rounded-sm cursor-pointer hover:bg-surface-container-highest/20 transition-all ${borderGlow}`}
                 >
                   {/* Card Header */}
                   <div className="flex items-center justify-between">
@@ -477,7 +482,7 @@ export default function DashboardOverview() {
 
       {/* Main Map Area */}
       <div className="flex-1 relative bg-surface-dim">
-        <MapView incidents={liveIncidents} />
+        <MapView incidents={liveIncidents} selectedIncidentCoordinates={selectedIncidentCoordinates} />
         {/* Grid Overlay */}
         <div className="absolute inset-0 grid-overlay pointer-events-none z-10" />
       </div>

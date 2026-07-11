@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { APIProvider, Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
+import { APIProvider, Map, AdvancedMarker, useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 
 interface MapViewProps {
   incidents?: Array<{
@@ -10,6 +10,7 @@ interface MapViewProps {
     priority: string;
     coordinates?: { lat: number; lng: number };
   }>;
+  selectedIncidentCoordinates?: { lat: number; lng: number } | null;
 }
 
 // Initial coordinates specified by user: Sector-7 Tactical Command Center
@@ -34,31 +35,82 @@ function MapCenterController({ center, zoom }: { center: google.maps.LatLngLiter
   return null;
 }
 
-// Helper component to render a Google Maps Polyline tracking movement history
-function MapPolyline({ path }: { path: google.maps.LatLngLiteral[] }) {
+function DirectionsRoute({ origin, destination }: { origin: google.maps.LatLngLiteral; destination: google.maps.LatLngLiteral }) {
   const map = useMap();
+  const routesLibrary = useMapsLibrary("routes");
 
   useEffect(() => {
-    if (!map || path.length < 2) return;
+    if (!map || !routesLibrary || !origin || !destination) return;
 
-    const polyline = new google.maps.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: "#00e5ff", // Primary cyber blue matching theme
-      strokeOpacity: 0.8,
-      strokeWeight: 4,
-      map: map,
+    const directionsService = new routesLibrary.DirectionsService();
+    const directionsRenderer = new routesLibrary.DirectionsRenderer({
+      map,
+      suppressMarkers: true,
+      polylineOptions: {
+        strokeColor: "#00B4D8",
+        strokeOpacity: 0,
+        strokeWeight: 0,
+      },
     });
 
+    directionsService.route(
+      {
+        origin,
+        destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+      },
+      (result, status) => {
+        if (status === google.maps.DirectionsStatus.OK && result) {
+          directionsRenderer.setDirections(result);
+
+          const route = result.routes[0];
+          if (route) {
+            const fullPath: google.maps.LatLng[] = [];
+            route.legs.forEach(leg => {
+              leg.steps.forEach(step => {
+                step.path.forEach(point => fullPath.push(point));
+              });
+            });
+
+            // Wider glow/shadow layer
+            const glowPolyline = new google.maps.Polyline({
+              path: fullPath,
+              geodesic: true,
+              strokeColor: "#00B4D8",
+              strokeOpacity: 0.25,
+              strokeWeight: 10,
+              map,
+            });
+
+            // Main cyan route line
+            const mainPolyline = new google.maps.Polyline({
+              path: fullPath,
+              geodesic: true,
+              strokeColor: "#00DAF3",
+              strokeOpacity: 0.9,
+              strokeWeight: 4,
+              map,
+            });
+
+            (directionsRenderer as any).__customPolylines = [glowPolyline, mainPolyline];
+          }
+        }
+      }
+    );
+
     return () => {
-      polyline.setMap(null);
+      const polylines = (directionsRenderer as any).__customPolylines;
+      if (polylines) {
+        polylines.forEach((p: google.maps.Polyline) => p.setMap(null));
+      }
+      directionsRenderer.setMap(null);
     };
-  }, [map, path]);
+  }, [map, routesLibrary, origin.lat, origin.lng, destination.lat, destination.lng]);
 
   return null;
 }
 
-export default function MapView({ incidents = [] }: MapViewProps) {
+export default function MapView({ incidents = [], selectedIncidentCoordinates }: MapViewProps) {
   const [center, setCenter] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const [liveLocation, setLiveLocation] = useState<google.maps.LatLngLiteral>(DEFAULT_CENTER);
   const [path, setPath] = useState<google.maps.LatLngLiteral[]>([DEFAULT_CENTER]);
@@ -170,6 +222,13 @@ export default function MapView({ incidents = [] }: MapViewProps) {
     }
   }, [incidents, liveLocation]);
 
+  // Center on clicked incident from dispatch board
+  useEffect(() => {
+    if (selectedIncidentCoordinates) {
+      setCenter(selectedIncidentCoordinates);
+    }
+  }, [selectedIncidentCoordinates]);
+
   if (!apiKey) {
     return (
       <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-container-lowest/80 border border-outline-variant/30 text-error">
@@ -183,7 +242,7 @@ export default function MapView({ incidents = [] }: MapViewProps) {
 
   return (
     <div className="absolute inset-0 w-full h-full relative">
-      <APIProvider apiKey={apiKey}>
+      <APIProvider apiKey={apiKey} libraries={["routes"]}>
         <Map
           defaultCenter={DEFAULT_CENTER}
           defaultZoom={zoom}
@@ -193,7 +252,6 @@ export default function MapView({ incidents = [] }: MapViewProps) {
           style={{ width: "100%", height: "100%" }}
         >
           <MapCenterController center={center} zoom={zoom} />
-          <MapPolyline path={path} />
 
           {/* Live User Location Marker */}
           {liveLocation && (
