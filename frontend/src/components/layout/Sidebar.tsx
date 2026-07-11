@@ -10,8 +10,6 @@ const mainNavItems: NavItem[] = [
   { label: "Incidents", icon: "emergency", href: "/dashboard/incidents" },
   { label: "Resources", icon: "inventory_2", href: "/dashboard/resources" },
   { label: "Agents", icon: "groups", href: "/dashboard/agents" },
-  { label: "Satellite", icon: "satellite_alt", href: "/dashboard/satellite" },
-  { label: "Drones", icon: "flight", href: "/dashboard/drones" },
   { label: "Communications", icon: "cell_tower", href: "/dashboard/communications" },
   { label: "Reports", icon: "description", href: "/dashboard/reports" },
 ];

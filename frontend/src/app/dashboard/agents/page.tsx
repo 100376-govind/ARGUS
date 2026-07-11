@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import agentsData from "@/data/agents.json";
 import type { AIAgent, FieldOperative, RosterAgent } from "@/types";
 
-const aiAgents = agentsData.aiAgents as AIAgent[];
 const fieldOperatives = agentsData.fieldOperatives as FieldOperative[];
 const roster = agentsData.roster as RosterAgent[];
 
@@ -36,6 +35,31 @@ const specialtyStyles: Record<string, string> = {
 export default function AgentsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("ai");
   const [selectedRosterId, setSelectedRosterId] = useState<string>(roster[0]?.id || "");
+  const [aiAgents, setAiAgents] = useState<AIAgent[]>(agentsData.aiAgents as AIAgent[]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      try {
+        const res = await fetch("http://localhost:3001/api/agents/status", {
+          headers: {
+            "Authorization": "Bearer mock-admin-token"
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.data)) {
+            setAiAgents(json.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch real-time agents:", err);
+      }
+    };
+    
+    fetchAgents();
+    const interval = setInterval(fetchAgents, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const selectedAgent = roster.find((a) => a.id === selectedRosterId) || roster[0];
 
@@ -101,7 +125,7 @@ export default function AgentsPage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="grid grid-cols-3 gap-[var(--spacing-gutter)]"
+              className="grid grid-cols-1 md:grid-cols-6 gap-[var(--spacing-gutter)]"
             >
               {aiAgents.map((agent, idx) => (
                 <motion.div
@@ -109,7 +133,9 @@ export default function AgentsPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.06 }}
-                  className="glass-card border border-outline-variant/20 p-5 flex flex-col gap-4 relative agent-card-hover cursor-pointer group"
+                  className={`glass-card border border-outline-variant/20 p-5 flex flex-col gap-4 relative agent-card-hover cursor-pointer group md:col-span-2 ${
+                    idx === 3 ? "md:col-start-2" : ""
+                  }`}
                 >
                   {/* Header */}
                   <div className="flex items-center gap-4">

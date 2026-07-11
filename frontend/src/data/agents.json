@@ -49,16 +49,6 @@
       "cpu": 55,
       "memory": 71,
       "icon": "verified_user"
-    },
-    {
-      "id": "AI-006",
-      "name": "Overwatch",
-      "status": "alert",
-      "confidence": 88,
-      "currentTask": "WARNING: Anomalous signal detected in Sector 4. Running deep analysis.",
-      "cpu": 91,
-      "memory": 89,
-      "icon": "visibility"
     }
   ],
   "fieldOperatives": [
