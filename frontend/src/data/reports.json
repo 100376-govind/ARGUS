@@ -1,0 +1,7 @@
+[
+  { "id": "RPT-2024", "title": "Sector 7G Incident Response Summary", "author": "Cpt. Reynolds", "status": "submitted", "date": "2026-07-10", "summary": "Chemical spill containment 80% complete. No civilian casualties.", "sector": "Sector 7" },
+  { "id": "RPT-2023", "title": "Drone Reconnaissance Analysis", "author": "AI-Risk-Evaluator", "status": "reviewed", "date": "2026-07-10", "summary": "Aerial survey completed. Threat assessment updated for all sectors.", "sector": "All Sectors" },
+  { "id": "RPT-2022", "title": "Medical Supply Audit", "author": "Sgt. Okafor", "status": "pending", "date": "2026-07-09", "summary": "Critical shortage detected. Emergency resupply requested.", "sector": "Zone Alpha" },
+  { "id": "RPT-2021", "title": "Perimeter Security Assessment", "author": "R. Sterling", "status": "classified", "date": "2026-07-09", "summary": "[CLASSIFIED] Perimeter integrity report.", "sector": "Sector 7" },
+  { "id": "RPT-2020", "title": "AI System Performance Review", "author": "Eng. Vasquez", "status": "reviewed", "date": "2026-07-08", "summary": "All AI cores operating within parameters. Data Dispatcher at 99% confidence.", "sector": "Base Command" }
+]

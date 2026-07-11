@@ -1,0 +1,173 @@
+{
+  "aiAgents": [
+    {
+      "id": "AI-001",
+      "name": "Data Dispatcher",
+      "status": "active",
+      "confidence": 99,
+      "currentTask": "Receiving raw communications, normalizing incident feeds with Gemini, and dispatching tasks to downstream command pipelines.",
+      "cpu": 42,
+      "memory": 68,
+      "icon": "hub"
+    },
+    {
+      "id": "AI-002",
+      "name": "Risk Evaluator",
+      "status": "active",
+      "confidence": 97,
+      "currentTask": "Calculating incident severity indices, evaluating life-threat parameters, and prioritizing dispatch queues.",
+      "cpu": 65,
+      "memory": 54,
+      "icon": "shield"
+    },
+    {
+      "id": "AI-003",
+      "name": "Field Validator",
+      "status": "active",
+      "confidence": 95,
+      "currentTask": "Cross-referencing satellite, telemetry, and camera feeds to validate incident veracity.",
+      "cpu": 78,
+      "memory": 82,
+      "icon": "analytics"
+    },
+    {
+      "id": "AI-004",
+      "name": "Resource Allocator",
+      "status": "standby",
+      "confidence": 92,
+      "currentTask": "Optimizing vehicle routes, matching asset inventories to incident demands, and scheduling deployments.",
+      "cpu": 12,
+      "memory": 35,
+      "icon": "route"
+    },
+    {
+      "id": "AI-005",
+      "name": "Compliance Auditor",
+      "status": "active",
+      "confidence": 98,
+      "currentTask": "Auditing pipeline telemetry, verifying lifecycle states, and writing compliance logs.",
+      "cpu": 55,
+      "memory": 71,
+      "icon": "verified_user"
+    },
+    {
+      "id": "AI-006",
+      "name": "Overwatch",
+      "status": "alert",
+      "confidence": 88,
+      "currentTask": "WARNING: Anomalous signal detected in Sector 4. Running deep analysis.",
+      "cpu": 91,
+      "memory": 89,
+      "icon": "visibility"
+    }
+  ],
+  "fieldOperatives": [
+    {
+      "id": "AX-7742",
+      "name": "J. Vance",
+      "specialty": "tactical",
+      "status": "deployed",
+      "heartRate": 82,
+      "oxygenLevel": 98,
+      "location": "Sector 7 - Grid B",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDxf34Blg48T--m-iLhmbDKqqzXd-yNTKB932YBEbAg21017W7VeIg0byN1H5L51rUOhgbpcki2sB8HGKGPD-Lf-6IPd5FTIEYsmyawDCnfUoceBCB1nHT7wkw0_7gkmaeNWiwFrFE43DYMf8yFTvsodAzOqknF_VncAgdVXi5lv75DD64qysl2ups53Q7cKUzEcjAXMyx1SpeLQR7gPwRs8ONlnhaVEPN9hIsNpsSv-38PoT-t64bQgi4jQ0a8q2Bf8DH9xu2Qg_09",
+      "isAlert": false,
+      "vitalsPath": "M0,15 L10,12 L20,20 L30,5 L40,25 L50,15 L60,18 L70,10 L80,22 L90,15 L100,12"
+    },
+    {
+      "id": "MD-2291",
+      "name": "S. Carter",
+      "specialty": "paramedic",
+      "status": "active",
+      "heartRate": 68,
+      "oxygenLevel": 99,
+      "location": "Zone Alpha - Med Bay",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDtczeRHuS3fVm8TS6e5wGGPwXUC-kPJoo4iWibP1oMH1qKtSt8VtVas-7dW3_WanaOERKmw-tYubIhR52qNHNKQIWPnDO9RJMzfFTZJ0sMcGSvamT4PiTfKUlAMtzSrnvpq2SFoZk-LqKw-kMkZ9RenY23DtB3W0WY8TU8bab2XQT3YNzQdZ08YOu9ShGc0YF55G0jzDMbsA44lwhRTjJLL2u6NfG_lzCLXQjS0mxonQYrKuzflN8KefKARhkYCoEbHdMRNOBiKBbs",
+      "isAlert": false,
+      "vitalsPath": "M0,15 L15,16 L30,14 L45,15 L60,13 L75,15 L90,16 L100,15"
+    },
+    {
+      "id": "EG-9011",
+      "name": "K. Lin",
+      "specialty": "engineer",
+      "status": "alert",
+      "heartRate": 142,
+      "oxygenLevel": 94,
+      "location": "Sector 4 - Sub-Level",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuBYpBrAjBs-iRM6t5pFOAi7TYAI5JjfNI9OS6SP_nKbwQLa5aaJflMSpEZRbMFYZCVFeZwcUpqJE0LP8SyZIzHmemkDKbEi9mxtNTXXCgZNiY5xyvdkUhORu0Mp3xSflElapfgCsJR20l0MREWf_m-DkPFUR6ZxKL4wiSAmliR7Utxbsa3oxtzsds4TVKZDP1FRLKd2JtGAT9njetvk3Shw4KB-EznunYLsu9kmSXNe6YSXknmlCWpjeM6kQVZbMkrlNa2pNB2li3NT",
+      "isAlert": true,
+      "vitalsPath": "M0,20 L5,5 L10,25 L15,10 L20,28 L25,2 L30,22 L35,8 L40,26 L45,4 L50,24 L55,6 L60,28 L65,3 L70,25 L75,5 L80,26 L85,4 L90,24 L95,6 L100,20"
+    },
+    {
+      "id": "AX-1102",
+      "name": "R. Sterling",
+      "specialty": "tactical",
+      "status": "deployed",
+      "heartRate": 58,
+      "oxygenLevel": 100,
+      "location": "Sector 7 - Perimeter",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDtBkdW_axVjCHvq10Tkthhh_UForXyuDW_wVE-ZJMSSW14-Ktktu20c8lq2VjFts8ae86hQuG9NzlD_zaYXyoMMUmwkPv0c03icWCfIYaxbNQ2PDoW5wgfuBPnlM9pSVg2rVJci0sLccjNEa4qGku3rWpQkKILgIaYOiqIo3fDvYa7cG_cmmm2LfwCoqD3Zq_kbGjqVG4AXuf2OAwL82JR9gZq1AKLCvCfKDf1epAPQQWatV_ppgLMtxZoO7yugI4J3p_BbuxzhB1L",
+      "isAlert": false,
+      "vitalsPath": "M0,18 L20,18 L25,12 L30,24 L35,18 L55,18 L60,10 L65,26 L70,18 L100,18"
+    }
+  ],
+  "roster": [
+    {
+      "id": "AX-7729",
+      "designation": "Vance, Kael",
+      "specialty": "Tactical Ops",
+      "status": "deployed",
+      "location": "Sector 4, LZ-Alpha",
+      "rating": 98.2,
+      "dob": "2184.04.12",
+      "bloodType": "O-NEG",
+      "clearance": "LEVEL 5",
+      "role": "Op-Commander",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuBG0fLXO7VZP8y-75tyyOyjv_JI1782akJd1w5BDyd5z3Juuao1186OU_UozJlzgqQs6RrX0e2GrfWc-GqWbYAhHsNyGRYiYSQyPEoVx5BYo4oiNs7PaiDfneoiNbYEHuEk7NcoZ9CV8DGfIT43bXPS_kaGjcUW6HqZu-pROS_yOPGXClNg9uo23Ecm76WbqXAcO6xztLjD8_WHHJiQeweL1Un5jo91BLzDduyu9dCuHGGq_28sVCgvMQxt8wHYe1ByYsLmLPg353Dt",
+      "deploymentLogs": [
+        {
+          "timestamp": "T-MINUS 04:22:11",
+          "location": "LZ-ALPHA",
+          "description": "Commenced perimeter sweep. Heat signatures nominal. Awaiting extraction coordinates.",
+          "isActive": true
+        },
+        {
+          "timestamp": "T-MINUS 48:12:00",
+          "location": "BASE CAMP",
+          "description": "Completed routine diagnostic on primary comms array. 100% efficiency.",
+          "isActive": false
+        }
+      ]
+    },
+    {
+      "id": "EN-2104",
+      "designation": "Reyes, Elena",
+      "specialty": "Combat Engineer",
+      "status": "standby",
+      "location": "Base Command",
+      "rating": 94.5,
+      "role": "Field Engineer",
+      "deploymentLogs": []
+    },
+    {
+      "id": "MD-9931",
+      "designation": "Chen, Wei",
+      "specialty": "Field Medic",
+      "status": "on-leave",
+      "location": "Classified",
+      "rating": 96.0,
+      "role": "Senior Medic",
+      "deploymentLogs": []
+    },
+    {
+      "id": "AX-4412",
+      "designation": "O'Connor, Jack",
+      "specialty": "Recon Sniper",
+      "status": "deployed",
+      "location": "Perimeter North",
+      "rating": 99.1,
+      "role": "Marksman",
+      "deploymentLogs": []
+    }
+  ]
+}

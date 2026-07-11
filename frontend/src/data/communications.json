@@ -1,0 +1,8 @@
+[
+  { "id": "CH-001", "name": "Command Net", "frequency": "142.800 MHz", "status": "active", "lastMessage": "All units, sitrep in 5 mikes.", "timestamp": "2026-07-10T16:44:00Z" },
+  { "id": "CH-002", "name": "Tactical Alpha", "frequency": "155.220 MHz", "status": "active", "lastMessage": "Bravo-4 on station, Sector 7G.", "timestamp": "2026-07-10T16:43:30Z" },
+  { "id": "CH-003", "name": "Medical Freq", "frequency": "148.500 MHz", "status": "active", "lastMessage": "Med-7 requesting additional supplies.", "timestamp": "2026-07-10T16:42:00Z" },
+  { "id": "CH-004", "name": "Drone Control", "frequency": "162.100 MHz", "status": "encrypted", "lastMessage": "Drone-04 feed online. IR active.", "timestamp": "2026-07-10T16:41:00Z" },
+  { "id": "CH-005", "name": "Emergency Broadcast", "frequency": "121.500 MHz", "status": "standby", "lastMessage": "No active emergency broadcasts.", "timestamp": "2026-07-10T16:00:00Z" },
+  { "id": "CH-006", "name": "Encrypted Ops", "frequency": "CLASSIFIED", "status": "encrypted", "lastMessage": "[REDACTED]", "timestamp": "2026-07-10T16:30:00Z" }
+]

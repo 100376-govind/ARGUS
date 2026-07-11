@@ -1,0 +1,8 @@
+[
+  { "id": "D-001", "callsign": "Drone Patrol-7", "status": "patrol", "altitude": 450, "speed": 24, "location": "Sector 7, Airspace", "assignedIncident": "#INC-4092", "battery": 78, "coordinates": { "lat": 34.052, "lng": -118.243 } },
+  { "id": "D-002", "callsign": "Recon Drone 2", "status": "signal-lost", "altitude": 0, "speed": 0, "location": "Last Known: Sector 4", "battery": 0, "coordinates": { "lat": 34.048, "lng": -118.255 } },
+  { "id": "D-003", "callsign": "Relay Drone C-404", "status": "active", "altitude": 800, "speed": 12, "location": "Sector 2, High Altitude", "battery": 92, "coordinates": { "lat": 34.058, "lng": -118.238 } },
+  { "id": "D-004", "callsign": "Drone-04", "status": "active", "altitude": 450, "speed": 24, "location": "Sector 7G", "assignedIncident": "#INC-4092", "battery": 65, "coordinates": { "lat": 34.053, "lng": -118.244 } },
+  { "id": "D-005", "callsign": "Scout-12", "status": "returning", "altitude": 200, "speed": 45, "location": "RTB to Base", "battery": 22, "coordinates": { "lat": 34.040, "lng": -118.260 } },
+  { "id": "D-006", "callsign": "Overwatch-1", "status": "patrol", "altitude": 1200, "speed": 8, "location": "Sector 9, Perimeter", "battery": 88, "coordinates": { "lat": 34.035, "lng": -118.270 } }
+]

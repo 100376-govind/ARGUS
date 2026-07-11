@@ -1,0 +1,14 @@
+[
+  { "id": "ACT-001", "level": "sys", "message": "Analyzing anomaly sector 7...", "timestamp": "2026-07-10T16:45:00Z" },
+  { "id": "ACT-002", "level": "warn", "message": "Signature mismatch detected.", "timestamp": "2026-07-10T16:44:30Z" },
+  { "id": "ACT-003", "level": "act", "message": "Deploying drone recon 4.", "timestamp": "2026-07-10T16:44:00Z" },
+  { "id": "ACT-004", "level": "sys", "message": "Recalibrating sensor array...", "timestamp": "2026-07-10T16:43:30Z" },
+  { "id": "ACT-005", "level": "log", "message": "Routine scan complete.", "timestamp": "2026-07-10T16:43:00Z" },
+  { "id": "ACT-006", "level": "sys", "message": "Perimeter check: All sectors GREEN.", "timestamp": "2026-07-10T16:42:00Z" },
+  { "id": "ACT-007", "level": "act", "message": "Dispatching Alpha-1 to Block 4.", "timestamp": "2026-07-10T16:41:00Z" },
+  { "id": "ACT-008", "level": "warn", "message": "Recon Drone 2 signal lost.", "timestamp": "2026-07-10T16:40:00Z" },
+  { "id": "ACT-009", "level": "sys", "message": "AI Core confidence: 99.2%", "timestamp": "2026-07-10T16:39:00Z" },
+  { "id": "ACT-010", "level": "act", "message": "Route optimized for Bravo-4.", "timestamp": "2026-07-10T16:38:00Z" },
+  { "id": "ACT-011", "level": "error", "message": "Agent K. Lin elevated HR detected.", "timestamp": "2026-07-10T16:37:00Z" },
+  { "id": "ACT-012", "level": "log", "message": "Satellite pass in T-12 minutes.", "timestamp": "2026-07-10T16:36:00Z" }
+]

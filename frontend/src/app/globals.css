@@ -1,0 +1,305 @@
+@import "tailwindcss";
+
+/* ========================================
+   ARGUS TACTICAL COMMAND - DESIGN SYSTEM
+   Tactical Glassmorphism Theme
+   ======================================== */
+
+@theme inline {
+  /* === COLORS === */
+  --color-background: #101418;
+  --color-foreground: #e0e2e8;
+  --color-base: #0A0E12;
+
+  /* Primary - Cyber Blue */
+  --color-primary: #c3f5ff;
+  --color-primary-container: #00e5ff;
+  --color-primary-fixed: #9cf0ff;
+  --color-primary-fixed-dim: #00daf3;
+  --color-on-primary: #00363d;
+  --color-on-primary-fixed: #001f24;
+  --color-on-primary-container: #00626e;
+  --color-on-primary-fixed-variant: #004f58;
+  --color-inverse-primary: #006875;
+
+  /* Secondary - Teal */
+  --color-secondary: #44ddc1;
+  --color-secondary-container: #00bea4;
+  --color-secondary-fixed: #68fadd;
+  --color-secondary-fixed-dim: #44ddc1;
+  --color-on-secondary: #00382f;
+  --color-on-secondary-fixed: #00201a;
+  --color-on-secondary-container: #00463b;
+  --color-on-secondary-fixed-variant: #005145;
+
+  /* Tertiary - Red/Alert */
+  --color-tertiary: #ffe7e6;
+  --color-tertiary-container: #ffc1c0;
+  --color-tertiary-fixed: #ffdad9;
+  --color-tertiary-fixed-dim: #ffb3b3;
+  --color-on-tertiary: #680014;
+  --color-on-tertiary-fixed: #400009;
+  --color-on-tertiary-container: #b4002b;
+  --color-on-tertiary-fixed-variant: #920021;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Surface hierarchy */
+  --color-surface: #101418;
+  --color-surface-dim: #101418;
+  --color-surface-bright: #363a3e;
+  --color-surface-container-lowest: #0b0f13;
+  --color-surface-container-low: #181c20;
+  --color-surface-container: #1c2024;
+  --color-surface-container-high: #262a2f;
+  --color-surface-container-highest: #31353a;
+  --color-surface-variant: #31353a;
+  --color-surface-tint: #00daf3;
+  --color-on-surface: #e0e2e8;
+  --color-on-surface-variant: #bac9cc;
+  --color-on-background: #e0e2e8;
+  --color-inverse-surface: #e0e2e8;
+  --color-inverse-on-surface: #2d3135;
+
+  /* Outline */
+  --color-outline: #849396;
+  --color-outline-variant: #3b494c;
+
+  /* === FONTS === */
+  --font-inter: "Inter", sans-serif;
+  --font-geist: "Geist", monospace;
+
+  /* === SPACING === */
+  --spacing-panel-gap: 1px;
+  --spacing-unit: 4px;
+  --spacing-gutter: 16px;
+  --spacing-margin-mobile: 16px;
+  --spacing-margin-desktop: 32px;
+}
+
+/* === BASE STYLES === */
+html {
+  background-color: var(--color-base);
+}
+
+body {
+  background-color: var(--color-base);
+  color: var(--color-on-surface);
+  font-family: var(--font-inter);
+}
+
+::selection {
+  background: rgba(0, 229, 255, 0.3);
+  color: var(--color-on-surface);
+}
+
+/* === SCANLINE OVERLAY === */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.15) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.5;
+}
+
+/* === GLASSMORPHISM === */
+.glass-panel {
+  background: rgba(11, 15, 19, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    inset 0 0 20px rgba(0, 218, 243, 0.02),
+    0 8px 32px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.glass-card {
+  background: rgba(16, 20, 24, 0.6);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 10px rgba(0, 218, 243, 0.05);
+}
+
+.glass-card-header {
+  background: rgba(0, 218, 243, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glass-header {
+  background: rgba(0, 218, 243, 0.05);
+  border-bottom: 1px solid rgba(0, 218, 243, 0.1);
+}
+
+/* === TECH BRACKET DECORATION === */
+.tech-bracket::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  border-bottom: 2px solid rgba(0, 218, 243, 0.5);
+  border-right: 2px solid rgba(0, 218, 243, 0.5);
+  pointer-events: none;
+}
+
+.tech-bracket-tr::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  border-top: 2px solid #00daf3;
+  border-right: 2px solid #00daf3;
+}
+
+.tech-bracket-bl::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-bottom: 2px solid #00daf3;
+  border-left: 2px solid #00daf3;
+}
+
+/* === GLOW EFFECTS === */
+.glow-card {
+  box-shadow:
+    0 0 15px rgba(0, 218, 243, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  transition: box-shadow 0.3s, border-color 0.3s;
+}
+
+.glow-card:hover {
+  box-shadow:
+    0 0 20px rgba(0, 218, 243, 0.15),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.glow-active {
+  box-shadow: 0 0 12px rgba(0, 218, 243, 0.2);
+}
+
+.agent-card-hover:hover {
+  box-shadow: 0 0 15px rgba(0, 218, 243, 0.2);
+  border-color: rgba(0, 218, 243, 0.5);
+}
+
+.cyber-glow-hover:hover {
+  box-shadow: 0 0 12px rgba(0, 218, 243, 0.2);
+  border-color: rgba(0, 218, 243, 0.5);
+}
+
+.text-glow {
+  text-shadow: 0 0 8px currentColor;
+}
+
+/* === ANIMATIONS === */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+    box-shadow: 0 0 5px currentColor;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+    box-shadow: 0 0 15px currentColor;
+  }
+}
+
+.status-pip {
+  animation: breathe 3s infinite ease-in-out;
+}
+
+@keyframes scroll-up {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes sparkline-pulse {
+  0% {
+    opacity: 0.5;
+    stroke-width: 1;
+  }
+  50% {
+    opacity: 1;
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px #00daf3);
+  }
+  100% {
+    opacity: 0.5;
+    stroke-width: 1;
+  }
+}
+
+.animate-sparkline {
+  animation: sparkline-pulse 2s infinite ease-in-out;
+}
+
+/* Row selection state */
+.row-active {
+  background: rgba(0, 229, 255, 0.1);
+  border-left: 2px solid #00daf3;
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 218, 243, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 218, 243, 0.8);
+}
+
+/* === GRID OVERLAY (for map) === */
+.grid-overlay {
+  background-image: linear-gradient(
+      rgba(0, 218, 243, 0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(90deg, rgba(0, 218, 243, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

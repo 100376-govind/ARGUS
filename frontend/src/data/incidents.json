@@ -1,0 +1,98 @@
+[
+  {
+    "id": "#INC-4092",
+    "priority": "critical",
+    "type": "Chemical Spill",
+    "location": "Sector 7G, Industrial Park",
+    "responseTeam": "Bravo-4, Hazmat",
+    "status": "in-progress",
+    "commander": "Cpt. Reynolds",
+    "eta": "Arrived (04:12m)",
+    "coordinates": { "lat": 34.0522, "lng": -118.2437 },
+    "timestamp": "2026-07-10T16:00:00Z"
+  },
+  {
+    "id": "#INC-4091",
+    "priority": "high",
+    "type": "Structure Fire",
+    "location": "Downtown Core, Block 4",
+    "responseTeam": "Alpha-1, Engine 9",
+    "status": "dispatched",
+    "commander": "Lt. Nakamura",
+    "eta": "ETA 08:45m",
+    "coordinates": { "lat": 34.0450, "lng": -118.2510 },
+    "timestamp": "2026-07-10T15:45:00Z"
+  },
+  {
+    "id": "#INC-4090",
+    "priority": "medium",
+    "type": "Medical Emergency",
+    "location": "Transit Hub Alpha",
+    "responseTeam": "Med-7",
+    "status": "in-progress",
+    "commander": "Sgt. Okafor",
+    "eta": "Arrived (01:30m)",
+    "coordinates": { "lat": 34.0580, "lng": -118.2380 },
+    "timestamp": "2026-07-10T15:30:00Z"
+  },
+  {
+    "id": "#INC-4088",
+    "priority": "critical",
+    "type": "Grid Failure",
+    "location": "Substation Node 12",
+    "responseTeam": "Tech-Omega",
+    "status": "dispatched",
+    "commander": "Eng. Vasquez",
+    "eta": "ETA 12:00m",
+    "coordinates": { "lat": 34.0610, "lng": -118.2290 },
+    "timestamp": "2026-07-10T15:15:00Z"
+  },
+  {
+    "id": "#INC-4085",
+    "priority": "low",
+    "type": "Traffic Obstruction",
+    "location": "Highway Junction R-7",
+    "responseTeam": "Patrol-3",
+    "status": "resolved",
+    "commander": "Off. Chen",
+    "eta": "Resolved",
+    "coordinates": { "lat": 34.0400, "lng": -118.2600 },
+    "timestamp": "2026-07-10T14:00:00Z"
+  },
+  {
+    "id": "#INC-4083",
+    "priority": "high",
+    "type": "Structural Collapse",
+    "location": "Sector 2, Old Quarter",
+    "responseTeam": "Charlie-2, SAR",
+    "status": "in-progress",
+    "commander": "Cpt. Mendez",
+    "eta": "Arrived (22:10m)",
+    "coordinates": { "lat": 34.0480, "lng": -118.2550 },
+    "timestamp": "2026-07-10T13:30:00Z"
+  },
+  {
+    "id": "#INC-4080",
+    "priority": "medium",
+    "type": "Flood Warning",
+    "location": "River Basin Sector 9",
+    "responseTeam": "Delta-5",
+    "status": "pending",
+    "commander": "Lt. Park",
+    "eta": "Staging",
+    "coordinates": { "lat": 34.0350, "lng": -118.2700 },
+    "timestamp": "2026-07-10T12:00:00Z"
+  },
+  {
+    "id": "#INC-4078",
+    "priority": "critical",
+    "type": "Hazardous Materials",
+    "location": "Port Facility Echo",
+    "responseTeam": "Hazmat-1, Bravo-2",
+    "status": "in-progress",
+    "commander": "Cpt. Johansson",
+    "eta": "Arrived (45:00m)",
+    "coordinates": { "lat": 34.0300, "lng": -118.2800 },
+    "timestamp": "2026-07-10T11:00:00Z"
+  }
+]

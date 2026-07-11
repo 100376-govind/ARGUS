@@ -1,0 +1,17 @@
+{
+  "inventory": [
+    { "name": "Tactical Vehicles", "icon": "directions_car", "percentage": 85, "available": "42", "total": "50", "isCritical": false },
+    { "name": "Medical Supplies", "icon": "medical_services", "percentage": 32, "available": "128", "total": "400", "isCritical": true },
+    { "name": "Comms Gear", "icon": "cell_tower", "percentage": 95, "available": "1,240", "total": "1,300", "isCritical": false },
+    { "name": "Ammunition", "icon": "military_tech", "percentage": 71, "available": "710", "total": "1,000", "isCritical": false },
+    { "name": "Fuel Reserves", "icon": "local_gas_station", "percentage": 48, "available": "4,800L", "total": "10,000L", "isCritical": false }
+  ],
+  "deployedAssets": [
+    { "id": "V-773", "type": "Armored Transport", "location": "Sector 4, Checkpoint Alpha", "status": "en-route" },
+    { "id": "M-092", "type": "Trauma Kit Box", "location": "Sector 7, FOB Delta", "status": "depleted" },
+    { "id": "C-404", "type": "Relay Drone", "location": "Sector 2, High Altitude", "status": "active" },
+    { "id": "V-112", "type": "Recon ATV", "location": "Sector 9, Perimeter", "status": "standby" },
+    { "id": "V-445", "type": "Command Vehicle", "location": "Base Command", "status": "standby" },
+    { "id": "M-201", "type": "Field Hospital Kit", "location": "Zone Alpha", "status": "active" }
+  ]
+}
