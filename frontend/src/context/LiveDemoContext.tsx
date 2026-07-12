@@ -290,6 +290,8 @@ export function LiveDemoProvider({ children }: { children: React.ReactNode }) {
     let severityVal = rawData.severity || "low";
     let reasoningVal = `Incident assessment completed. Threat level: ${severityVal.toUpperCase()}.`;
 
+    let confidenceVal = 0.85; // Default fallback
+
     try {
       const evaluateRes = await fetch("http://localhost:3001/api/risk/evaluate", {
         method: "POST",
@@ -306,15 +308,21 @@ export function LiveDemoProvider({ children }: { children: React.ReactNode }) {
         priorityVal = assessment.priority.toLowerCase();
         severityVal = assessment.severity.toLowerCase();
         reasoningVal = assessment.reasoning;
+        // Confidence from API is 0-100, normalize to 0-1
+        confidenceVal = assessment.confidence != null
+          ? (assessment.confidence > 1 ? assessment.confidence / 100 : assessment.confidence)
+          : 0.85;
       }
     } catch (err: any) {
       console.warn("Risk Evaluator fallback:", err.message);
       if (rawData.priority === "critical") {
         priorityVal = "critical"; severityVal = "critical";
         reasoningVal = `${rawData.type} emergency. Critical warning signs detected.`;
+        confidenceVal = 0.92;
       } else if (rawData.priority === "high") {
         priorityVal = "high"; severityVal = "high";
         reasoningVal = `${rawData.type} report. High response priority.`;
+        confidenceVal = 0.88;
       }
     }
 
@@ -325,6 +333,7 @@ export function LiveDemoProvider({ children }: { children: React.ReactNode }) {
               ...c,
               priority: priorityVal,
               severity: severityVal,
+              confidence: confidenceVal,
               reasoning: reasoningVal,
               riskStatus: "Completed",
             }
